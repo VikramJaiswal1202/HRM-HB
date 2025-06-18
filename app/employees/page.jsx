@@ -6,6 +6,7 @@ export default function EmployeesPage() {
   const router = useRouter();
 
   const sidebarItems = [
+    { label: "Homepage", icon: "🏠", route: "/homepage" },
     { label: "Employees", icon: "👥", route: "/employees" },
     { label: "Attendance and Timing", icon: "🗓" },
     { label: "Reporting", icon: "⏱", route: "/reporting" },
