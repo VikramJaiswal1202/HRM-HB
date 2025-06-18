@@ -5,9 +5,9 @@ export default function Homepage() {
   const router = useRouter();
 
   const sidebarItems = [
-    { label: "Employees", icon: "👥" },
+    { label: "Employees", icon: "👥", route: "/employees" }, // Added route here
     { label: "Attendance", icon: "🗓️" },
-    { label: "Timing Reporting", icon: "⏱️" },
+    { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
   ];
 
   const navTabs = [
@@ -35,6 +35,7 @@ export default function Homepage() {
               <button
                 key={item.label}
                 className="flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors"
+                onClick={() => item.route && router.push(item.route)} // Enable navigation
               >
                 <span className="text-2xl">{item.icon}</span>
                 <span className="text-[11px] font-medium">{item.label}</span>

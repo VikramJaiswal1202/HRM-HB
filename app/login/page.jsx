@@ -18,18 +18,22 @@ export default function Login() {
       const stored = localStorage.getItem("users");
       if (stored) return JSON.parse(stored);
     }
-    return [{ username: "rahul", password: "rahul" }];
+    // Default user with role HR
+    return [{ username: "rahul", password: "rahul", role: "HR" }];
   };
 
   const [users, setUsers] = useState(getInitialUsers);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState(""); // For login
+
   const [showSignup, setShowSignup] = useState(false);
 
   // Signup state
   const [signupUsername, setSignupUsername] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirm, setSignupConfirm] = useState("");
+  const [signupRole, setSignupRole] = useState(""); // For signup
   const [signupError, setSignupError] = useState("");
   const [signupSuccess, setSignupSuccess] = useState(false);
 
@@ -48,14 +52,28 @@ export default function Login() {
   const handleLogin = (e) => {
     e.preventDefault();
     setLoginError("");
+    // Special case for HR: username and password both "rahul" and HR checked
+    if (
+      username.toLowerCase() === "rahul" &&
+      password === "rahul" &&
+      role === "HR"
+    ) {
+      setLoginSuccess(true);
+      router.push("/homepage");
+      return;
+    }
+    // Normal login
     const found = users.find(
-      (u) => u.username === username && u.password === password
+      (u) =>
+        u.username === username &&
+        u.password === password &&
+        u.role === role
     );
     if (found) {
       setLoginSuccess(true);
-      router.push("/homepage"); // Redirect to homepage
+      router.push("/homepage");
     } else {
-      setLoginError("Invalid username or password");
+      setLoginError("Invalid username, password, or role");
     }
   };
 
@@ -63,19 +81,22 @@ export default function Login() {
   const handleSignup = (e) => {
     e.preventDefault();
     setSignupError("");
-    if (!signupUsername || !signupPassword) {
-      setSignupError("Please fill all fields");
+    if (!signupUsername || !signupPassword || !signupRole) {
+      setSignupError("Please fill all fields and select a role");
       return;
     }
     if (signupPassword !== signupConfirm) {
       setSignupError("Passwords do not match");
       return;
     }
-    if (users.find((u) => u.username === signupUsername)) {
-      setSignupError("Username already exists");
+    if (users.find((u) => u.username === signupUsername && u.role === signupRole)) {
+      setSignupError("Username with this role already exists");
       return;
     }
-    const newUsers = [...users, { username: signupUsername, password: signupPassword }];
+    const newUsers = [
+      ...users,
+      { username: signupUsername, password: signupPassword, role: signupRole },
+    ];
     setUsers(newUsers);
     setSignupSuccess(true);
     setTimeout(() => {
@@ -84,7 +105,8 @@ export default function Login() {
       setSignupUsername("");
       setSignupPassword("");
       setSignupConfirm("");
-      router.push("/homepage"); // Redirect to homepage after signup
+      setSignupRole("");
+      router.push("/homepage");
     }, 800);
   };
 
@@ -179,6 +201,51 @@ export default function Login() {
             style={inputBoxStyle}
             autoComplete="new-password"
           />
+          {/* Role selection */}
+          <div style={{ marginBottom: "16px", width: "100%" }}>
+            <label style={{ marginRight: 12, color: "#0D1A33", fontWeight: 500 }}>
+              <input
+                type="checkbox"
+                checked={signupRole === "HR"}
+                onChange={() => setSignupRole(signupRole === "HR" ? "" : "HR")}
+                style={{
+                  marginRight: 4,
+                  accentColor: "#0D1A33",
+                  width: 16,
+                  height: 16,
+                }}
+              />
+              HR
+            </label>
+            <label style={{ marginRight: 12, color: "#0D1A33", fontWeight: 500 }}>
+              <input
+                type="checkbox"
+                checked={signupRole === "manager"}
+                onChange={() => setSignupRole(signupRole === "manager" ? "" : "manager")}
+                style={{
+                  marginRight: 4,
+                  accentColor: "#0D1A33",
+                  width: 16,
+                  height: 16,
+                }}
+              />
+              Manager
+            </label>
+            <label style={{ color: "#0D1A33", fontWeight: 500 }}>
+              <input
+                type="checkbox"
+                checked={signupRole === "user"}
+                onChange={() => setSignupRole(signupRole === "user" ? "" : "user")}
+                style={{
+                  marginRight: 4,
+                  accentColor: "#0D1A33",
+                  width: 16,
+                  height: 16,
+                }}
+              />
+              User
+            </label>
+          </div>
           {signupError && (
             <div style={{ color: "#e74c3c", marginBottom: "10px", fontSize: 13 }}>
               {signupError}
@@ -283,6 +350,51 @@ export default function Login() {
           style={inputBoxStyle}
           autoComplete="current-password"
         />
+        {/* Role selection */}
+        <div style={{ marginBottom: "16px", width: "100%" }}>
+          <label style={{ marginRight: 12, color: "#0D1A33", fontWeight: 500 }}>
+            <input
+              type="checkbox"
+              checked={role === "HR"}
+              onChange={() => setRole(role === "HR" ? "" : "HR")}
+              style={{
+                marginRight: 4,
+                accentColor: "#0D1A33",
+                width: 16,
+                height: 16,
+              }}
+            />
+            HR
+          </label>
+          <label style={{ marginRight: 12, color: "#0D1A33", fontWeight: 500 }}>
+            <input
+              type="checkbox"
+              checked={role === "manager"}
+              onChange={() => setRole(role === "manager" ? "" : "manager")}
+              style={{
+                marginRight: 4,
+                accentColor: "#0D1A33",
+                width: 16,
+                height: 16,
+              }}
+            />
+            Manager
+          </label>
+          <label style={{ color: "#0D1A33", fontWeight: 500 }}>
+            <input
+              type="checkbox"
+              checked={role === "user"}
+              onChange={() => setRole(role === "user" ? "" : "user")}
+              style={{
+                marginRight: 4,
+                accentColor: "#0D1A33",
+                width: 16,
+                height: 16,
+              }}
+            />
+            User
+          </label>
+        </div>
         {loginError && (
           <div style={{ color: "#e74c3c", marginBottom: "10px", fontSize: 13 }}>
             {loginError}
