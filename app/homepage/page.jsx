@@ -6,7 +6,7 @@ export default function Homepage() {
 
   const sidebarItems = [
     { label: "Employees", icon: "👥", route: "/employees" }, // Added route here
-    { label: "Attendance", icon: "🗓️" },
+    { label: "Attendance", icon: "🗓️" ,route: "/attendance"},
     { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
   ];
 
