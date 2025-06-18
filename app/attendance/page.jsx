@@ -67,6 +67,10 @@ export default function HRMSAttendance() {
     setLocalMarked((prev) => [...prev, employeeId]);
   };
 
+  const handleUndo = (employeeId) => {
+    setLocalMarked((prev) => prev.filter((id) => id !== employeeId));
+  };
+
   const handleSubmit = async () => {
     if (!selectedDate) {
       alert('Please select a date.');
@@ -234,18 +238,30 @@ export default function HRMSAttendance() {
                       <span className="text-red-500 font-semibold">Absent</span>
                     )}
                   </td>
+                  {/* Action column with Undo */}
                   <td className="py-3 px-4 border">
-                    <button
-                      onClick={() => handleMark(emp.employeeId)}
-                      disabled={allPresentIds.includes(emp.employeeId)}
-                      className={`px-4 py-2 rounded ${
-                        allPresentIds.includes(emp.employeeId)
-                          ? 'bg-gray-400 cursor-not-allowed'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white'
-                      }`}
-                    >
-                      {allPresentIds.includes(emp.employeeId) ? 'Marked' : 'Mark Attendance'}
-                    </button>
+                    {localMarked.includes(emp.employeeId) ? (
+                      <button
+                        onClick={() => handleUndo(emp.employeeId)}
+                        className="px-4 py-2 rounded bg-yellow-500 hover:bg-yellow-600 text-white"
+                      >
+                        Undo
+                      </button>
+                    ) : allPresentIds.includes(emp.employeeId) ? (
+                      <button
+                        disabled
+                        className="px-4 py-2 rounded bg-gray-400 cursor-not-allowed text-white"
+                      >
+                        Marked
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleMark(emp.employeeId)}
+                        className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        Mark Attendance
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -273,59 +289,94 @@ export default function HRMSAttendance() {
 
         {/* All Attendance Modal/Section */}
         {showAllAttendance && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full max-h-[80vh] overflow-y-auto p-6 relative">
+          <div className="fixed inset-0 bg-gradient-to-br from-blue-200/80 to-blue-400/80 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-y-auto p-8 relative border-4 border-blue-300">
               <button
-                className="absolute top-2 right-2 text-gray-600 hover:text-black text-2xl"
+                className="absolute top-4 right-6 text-blue-400 hover:text-blue-700 text-3xl font-bold transition"
                 onClick={() => setShowAllAttendance(false)}
                 aria-label="Close"
               >
                 &times;
               </button>
-              <h2 className="text-2xl font-bold mb-4 text-center">All Attendance Records</h2>
+              <h2 className="text-3xl font-extrabold mb-8 text-center text-blue-700  top-0 bg-white z-10 pb-4 border-b-2 border-blue-100 shadow-sm">
+                <span className="inline-block align-middle mr-2">📊</span>
+                All Attendance Records
+              </h2>
               {allAttendanceLoading ? (
-                <div className="text-center py-8">Loading...</div>
+                <div className="text-center py-8 text-lg text-blue-700">Loading...</div>
               ) : Object.keys(groupedAttendance).length === 0 ? (
-                <div className="text-center py-8">No attendance records found.</div>
+                <div className="text-center py-8 text-lg text-blue-700">No attendance records found.</div>
               ) : (
-                Object.entries(groupedAttendance).map(([key, records]) => {
-                  const [date, shift] = key.split('__');
-                  const presentList = records.filter(r => r.status === 'Present');
-                  const absentList = records.filter(r => r.status === 'Absent');
-                  return (
-                    <div key={key} className="mb-6 border-b pb-4">
-                      <div className="font-semibold mb-2">
-                        Date: <span className="text-blue-700">{date}</span> | Shift: <span className="text-blue-700">{shift}</span>
-                      </div>
-                      <div className="flex flex-col md:flex-row gap-6">
-                        <div>
-                          <div className="font-semibold text-green-700">Present:</div>
-                          {presentList.length > 0 ? (
-                            <ul className="list-disc pl-6">
-                              {presentList.map((r, idx) => (
-                                <li key={`${r.employeeId}_${r.date}_${r.shift}_${r.status}_${idx}`}>{r.name} ({r.employeeId})</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="text-gray-500">None</div>
-                          )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {Object.entries(groupedAttendance).map(([key, records]) => {
+                    const [date, shift] = key.split('__');
+                    const presentList = records.filter(r => r.status === 'Present');
+                    const absentList = records.filter(r => r.status === 'Absent');
+                    return (
+                      <div
+                        key={key}
+                        className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-lg p-6 border-2 border-blue-200 hover:scale-[1.02] transition-transform"
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="font-bold text-lg text-blue-900 flex items-center gap-2">
+                            <span className="inline-block text-2xl">🗓️</span>
+                            {date}
+                          </div>
+                          <span className={`px-4 py-1 rounded-full text-sm font-semibold shadow
+                            ${shift === 'Morning' ? 'bg-blue-200 text-blue-800' :
+                              shift === 'Evening' ? 'bg-blue-400 text-white' :
+                              'bg-blue-700 text-white'}`}>
+                            {shift}
+                          </span>
                         </div>
-                        <div>
-                          <div className="font-semibold text-red-700">Absent:</div>
-                          {absentList.length > 0 ? (
-                            <ul className="list-disc pl-6">
-                              {absentList.map((r, idx) => (
-                                <li key={`${r.employeeId}_${r.date}_${r.shift}_${r.status}_${idx}`}>{r.name} ({r.employeeId})</li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <div className="text-gray-500">None</div>
-                          )}
+                        <div className="flex flex-col gap-4">
+                          <div>
+                            <div className="font-semibold text-blue-700 flex items-center gap-2 mb-1">
+                              <span className="text-xl">✅</span> Present
+                            </div>
+                            {presentList.length > 0 ? (
+                              <ul className="list-none pl-0">
+                                {presentList.map((r, idx) => (
+                                  <li
+                                    key={`${r.employeeId}_${r.date}_${r.shift}_${r.status}_${idx}`}
+                                    className="flex items-center gap-2 py-1"
+                                  >
+                                    <span className="inline-block text-blue-500">●</span>
+                                    <span className="font-medium text-blue-900">{r.name}</span>
+                                    <span className="text-xs text-blue-400">({r.employeeId})</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="text-blue-300 italic">None</div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-semibold text-blue-400 flex items-center gap-2 mb-1">
+                              <span className="text-xl">❌</span> Absent
+                            </div>
+                            {absentList.length > 0 ? (
+                              <ul className="list-none pl-0">
+                                {absentList.map((r, idx) => (
+                                  <li
+                                    key={`${r.employeeId}_${r.date}_${r.shift}_${r.status}_${idx}`}
+                                    className="flex items-center gap-2 py-1"
+                                  >
+                                    <span className="inline-block text-blue-200">●</span>
+                                    <span className="font-medium text-blue-700">{r.name}</span>
+                                    <span className="text-xs text-blue-300">({r.employeeId})</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="text-blue-200 italic">None</div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  })}
+                </div>
               )}
             </div>
           </div>
