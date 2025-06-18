@@ -6,7 +6,8 @@ export async function GET() {
   try {
     await connectDB();
 
-    const employees = await Employee.find({}, 'employeeId name'); // only select ID & name
+    // Now selecting: employeeId, name, email, department
+    const employees = await Employee.find({}, 'employeeId name email department');
 
     return NextResponse.json({ success: true, employees });
   } catch (error) {
