@@ -1,4 +1,5 @@
-"use client";
+'use client';
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -11,8 +12,9 @@ export default function EmployeesPage() {
     { label: "Homepage", icon: "🏠", route: "/homepage" },
     { label: "Employees", icon: "👥", route: "/employees" },
     { label: "Interns", icon: "👥", route: "/intern" },
-    { label: "Attendance", icon: "🗓️", route: "/attendance" },
-    { label: "Reporting", icon: "⏱️", route: "/reporting" },
+    { label: "Attendance", icon: "🗓", route: "/attendance" },
+    { label: "View Attendance", icon: "🗓", route: "/presentEmployees" },
+    { label: "Reporting", icon: "⏱", route: "/reporting" },
   ];
 
   const [employees, setEmployees] = useState([]);
@@ -23,33 +25,31 @@ export default function EmployeesPage() {
   const [addForm, setAddForm] = useState({
     name: "",
     email: "",
-    role: "",
+    mobileNumber: "",
     department: "",
+    designation: "",
     employeeId: "",
     resume: null,
-    more: null,
+    documents: null,
   });
   const [detailsForm, setDetailsForm] = useState({
     email: "",
-    resume: null,
-    more: null,
-    role: "",
     department: "",
+    designation: "",
+    resume: null,
+    documents: null,
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[1]);
+  const [message, setMessage] = useState("");
 
   // Fetch all employees from backend
   const fetchEmployees = () => {
     setLoading(true);
-    fetch("/api/employees")
+    fetch("/api/staff")
       .then((res) => res.json())
       .then((data) => {
-        const emps = (data.employees || []).map((emp) => ({
-          ...emp,
-          role: emp.role || emp.roll || "",
-        }));
-        setEmployees(emps);
+        setEmployees(data.staffList || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -71,10 +71,10 @@ export default function EmployeesPage() {
     setShowDetails(true);
     setDetailsForm({
       email: emp.email || "",
-      resume: null,
-      more: null,
-      role: emp.role || "",
       department: emp.department || "",
+      designation: emp.designation || "",
+      resume: null,
+      documents: null,
     });
   };
 
@@ -109,17 +109,25 @@ export default function EmployeesPage() {
   // Add employee and refresh list from backend
   const handleAddEmployee = async (e) => {
     e.preventDefault();
+
+    if (!addForm.resume || !addForm.documents) {
+      setMessage("Please upload both resume and documents.");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("name", addForm.name);
     formData.append("email", addForm.email);
-    formData.append("role", addForm.role);
+    formData.append("mobileNumber", addForm.mobileNumber);
     formData.append("department", addForm.department);
+    formData.append("designation", addForm.designation);
     formData.append("employeeId", addForm.employeeId);
-    if (addForm.resume) formData.append("resume", addForm.resume);
-    if (addForm.more) formData.append("more", addForm.more);
+    formData.append("resume", addForm.resume);
+    formData.append("documents", addForm.documents);
 
     try {
-      const res = await fetch("/api/fulltime", {
+      setLoading(true);
+      const res = await fetch("/api/staff", {
         method: "POST",
         body: formData,
       });
@@ -129,34 +137,39 @@ export default function EmployeesPage() {
         setAddForm({
           name: "",
           email: "",
-          role: "",
+          mobileNumber: "",
           department: "",
+          designation: "",
           employeeId: "",
           resume: null,
-          more: null,
+          documents: null,
         });
+        setMessage("Staff added successfully!");
         fetchEmployees();
       } else {
-        alert(data.error || "Failed to add employee.");
+        setMessage("Error: " + data.error);
       }
     } catch (err) {
-      alert("Failed to add employee.");
+      setMessage("Something went wrong.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Update employee details (email, role, department, resume, more)
+  // Update employee details (email, department, designation, resume, documents)
   const handleSaveDetails = async (e) => {
     e.preventDefault();
     if (!selectedEmployee) return;
     const formData = new FormData();
     formData.append("email", detailsForm.email);
-    formData.append("role", detailsForm.role);
     formData.append("department", detailsForm.department);
+    formData.append("designation", detailsForm.designation);
     if (detailsForm.resume) formData.append("resume", detailsForm.resume);
-    if (detailsForm.more) formData.append("more", detailsForm.more);
+    if (detailsForm.documents) formData.append("documents", detailsForm.documents);
 
     try {
-      const res = await fetch(`/api/employees/${selectedEmployee._id}`, {
+      setLoading(true);
+      const res = await fetch(`/api/staff/${selectedEmployee._id}`, {
         method: "PATCH",
         body: formData,
       });
@@ -169,6 +182,8 @@ export default function EmployeesPage() {
       }
     } catch (err) {
       alert("Failed to update details.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -238,6 +253,11 @@ export default function EmployeesPage() {
                   Add Employee
                 </button>
               </div>
+              {message && (
+                <div className={`mb-4 ${message.includes("success") ? "text-green-600" : "text-red-600"}`}>
+                  {message}
+                </div>
+              )}
               {loading ? (
                 <div className="text-[#0D1A33] text-center py-8">Loading...</div>
               ) : employees.length === 0 ? (
@@ -251,7 +271,7 @@ export default function EmployeesPage() {
                         <th className="py-3 px-6 border-b">Name</th>
                         <th className="py-3 px-6 border-b">Email</th>
                         <th className="py-3 px-6 border-b">Department</th>
-                        <th className="py-3 px-6 border-b">Role</th>
+                        <th className="py-3 px-6 border-b">Designation</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -265,7 +285,7 @@ export default function EmployeesPage() {
                           <td className="py-3 px-6 border-b">{emp.name}</td>
                           <td className="py-3 px-6 border-b">{emp.email || <span className="text-gray-400">-</span>}</td>
                           <td className="py-3 px-6 border-b">{emp.department || <span className="text-gray-400">-</span>}</td>
-                          <td className="py-3 px-6 border-b">{emp.role || <span className="text-gray-400">-</span>}</td>
+                          <td className="py-3 px-6 border-b">{emp.designation || <span className="text-gray-400">-</span>}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -350,12 +370,12 @@ export default function EmployeesPage() {
                   />
                 </label>
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
-                  Role
+                  Mobile Number
                   <input
                     type="text"
                     className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
-                    value={addForm.role}
-                    onChange={e => handleAddInputChange("role", e.target.value)}
+                    value={addForm.mobileNumber}
+                    onChange={e => handleAddInputChange("mobileNumber", e.target.value)}
                   />
                 </label>
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
@@ -365,6 +385,15 @@ export default function EmployeesPage() {
                     className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
                     value={addForm.department}
                     onChange={e => handleAddInputChange("department", e.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
+                  Designation
+                  <input
+                    type="text"
+                    className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
+                    value={addForm.designation}
+                    onChange={e => handleAddInputChange("designation", e.target.value)}
                   />
                 </label>
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
@@ -380,9 +409,10 @@ export default function EmployeesPage() {
                   Resume
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.doc,.docx,.jpg,.png"
                     className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
                     onChange={e => handleAddFileChange("resume", e.target.files[0])}
+                    required
                   />
                   {addForm.resume && (
                     <span className="text-xs text-green-600 mt-1">
@@ -391,15 +421,17 @@ export default function EmployeesPage() {
                   )}
                 </label>
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
-                  More (Upload)
+                  Documents
                   <input
                     type="file"
+                    accept=".pdf,.jpg,.png"
                     className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
-                    onChange={e => handleAddFileChange("more", e.target.files[0])}
+                    onChange={e => handleAddFileChange("documents", e.target.files[0])}
+                    required
                   />
-                  {addForm.more && (
+                  {addForm.documents && (
                     <span className="text-xs text-green-600 mt-1">
-                      {addForm.more.name}
+                      {addForm.documents.name}
                     </span>
                   )}
                 </label>
@@ -433,17 +465,17 @@ export default function EmployeesPage() {
                 <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Employee ID:</span> {selectedEmployee.employeeId}</div>
                 <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Email:</span> {selectedEmployee.email || <span className="text-gray-400">-</span>}</div>
                 <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Department:</span> {selectedEmployee.department || <span className="text-gray-400">-</span>}</div>
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Role:</span> {selectedEmployee.role || <span className="text-gray-400">-</span>}</div>
+                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Designation:</span> {selectedEmployee.designation || <span className="text-gray-400">-</span>}</div>
                 {selectedEmployee.resumeUrl && (
                   <div className="mb-2 text-[#0D1A33]">
                     <span className="font-semibold">Resume:</span>{" "}
                     <a href={selectedEmployee.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
                   </div>
                 )}
-                {selectedEmployee.moreFileUrl && (
+                {selectedEmployee.documentsUrl && (
                   <div className="mb-2 text-[#0D1A33]">
-                    <span className="font-semibold">More File:</span>{" "}
-                    <a href={selectedEmployee.moreFileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+                    <span className="font-semibold">Documents:</span>{" "}
+                    <a href={selectedEmployee.documentsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
                   </div>
                 )}
               </div>
@@ -459,15 +491,6 @@ export default function EmployeesPage() {
                   />
                 </label>
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
-                  Role
-                  <input
-                    type="text"
-                    className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
-                    value={detailsForm.role}
-                    onChange={e => handleDetailsInputChange("role", e.target.value)}
-                  />
-                </label>
-                <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
                   Department
                   <input
                     type="text"
@@ -477,20 +500,30 @@ export default function EmployeesPage() {
                   />
                 </label>
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
+                  Designation
+                  <input
+                    type="text"
+                    className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
+                    value={detailsForm.designation}
+                    onChange={e => handleDetailsInputChange("designation", e.target.value)}
+                  />
+                </label>
+                <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
                   Resume
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.doc,.docx,.jpg,.png"
                     className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
                     onChange={e => handleDetailsFileChange("resume", e.target.files[0])}
                   />
                 </label>
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
-                  More (Upload)
+                  Documents
                   <input
                     type="file"
+                    accept=".pdf,.jpg,.png"
                     className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
-                    onChange={e => handleDetailsFileChange("more", e.target.files[0])}
+                    onChange={e => handleDetailsFileChange("documents", e.target.files[0])}
                   />
                 </label>
                 <button

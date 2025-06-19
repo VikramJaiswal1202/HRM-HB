@@ -1,191 +1,160 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Calendar, Users, Clock, CheckCircle, Search } from 'lucide-react';
 import { useRouter } from "next/navigation";
 
-export default function HRMSAttendance() {
+export default function AttendancePage() {
   const router = useRouter();
 
   const sidebarItems = [
     { label: "Homepage", icon: "🏠", route: "/homepage" },
     { label: "Employees", icon: "👥", route: "/employees" },
     { label: "Interns", icon: "👥", route: "/intern" },
-    { label: "Attendance", icon: "🗓️", route: "/attendance" },
+    { label: "Attendance and Timing", icon: "🗓️", route: "/attendance" },
+    { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
     { label: "Reporting", icon: "⏱️", route: "/reporting" },
   ];
 
-  // ...existing code...
   const [employees, setEmployees] = useState([]);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedShift, setSelectedShift] = useState('Morning');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
+  const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [attendanceRecords, setAttendanceRecords] = useState([]);
-  const [localMarked, setLocalMarked] = useState([]);
-  const [showAllAttendance, setShowAllAttendance] = useState(false);
-  const [allAttendance, setAllAttendance] = useState([]);
-  const [allAttendanceLoading, setAllAttendanceLoading] = useState(false);
-
-  // ...existing code for fetching employees, attendance, etc...
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
         const res = await fetch('/api/employees');
+        if (!res.ok) throw new Error('Network error');
         const data = await res.json();
-        if (data.success) {
-          setEmployees(data.employees);
-        } else {
-          console.error(data.message || 'Failed to load employees.');
-        }
-      } catch (error) {
-        console.error('Error fetching employees:', error.message);
+        setEmployees(data.employees || []);
+      } catch (err) {
+        setEmployees([]);
+        console.error('Failed to load employees:', err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchEmployees();
   }, []);
 
-  // ...rest of your code remains unchanged...
-
-  // Fetch attendance for selected date/shift
   useEffect(() => {
+    if (!selectedDate) return;
     const fetchAttendance = async () => {
-      if (!selectedDate) {
-        setAttendanceRecords([]);
-        return;
-      }
       try {
         const res = await fetch(`/api/attendance?date=${selectedDate}&shift=${selectedShift}`);
+        if (!res.ok) throw new Error('Network error');
         const data = await res.json();
-        if (data.success) {
-          setAttendanceRecords(data.data);
-        } else {
-          setAttendanceRecords([]);
-        }
-      } catch (error) {
+        setAttendanceRecords(data.data || []);
+      } catch (err) {
         setAttendanceRecords([]);
+        console.error('Failed to fetch attendance:', err);
       }
     };
+
     fetchAttendance();
-    setLocalMarked([]);
-  }, [selectedDate, selectedShift, message]);
+  }, [selectedDate, selectedShift]);
 
-  // ...rest of your code...
+  const presentIds = attendanceRecords.map((r) => r.employeeId);
+  const unmarkedEmployees = employees.filter((e) => !presentIds.includes(e.employeeId));
 
-  // Get present employeeIds from backend
-  const presentIds = attendanceRecords.filter(r => r.status === 'Present').map(r => r.employeeId);
+  const filteredEmployees = unmarkedEmployees.filter(emp =>
+    emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.employeeId?.toString().includes(searchTerm) ||
+    emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const handleMark = (employeeId) => {
-    if (!selectedDate) return alert('Please select a date first.');
-    if (presentIds.includes(employeeId) || localMarked.includes(employeeId)) return;
-    setLocalMarked((prev) => [...prev, employeeId]);
+  const toggleSelect = (empId) => {
+    setSelectedEmployees((prev) =>
+      prev.includes(empId) ? prev.filter((id) => id !== empId) : [...prev, empId]
+    );
   };
 
-  const handleUndo = (employeeId) => {
-    setLocalMarked((prev) => prev.filter((id) => id !== employeeId));
+  const selectAll = () => {
+    setSelectedEmployees(filteredEmployees.map(emp => emp.employeeId));
+  };
+
+  const deselectAll = () => {
+    setSelectedEmployees([]);
   };
 
   const handleSubmit = async () => {
-    if (!selectedDate) {
-      alert('Please select a date.');
+    if (!selectedDate || !selectedShift) {
+      alert('Please select date and shift.');
       return;
     }
-    if (localMarked.length === 0) {
-      alert('Mark at least one employee present.');
+
+    const toSubmit = unmarkedEmployees
+      .filter((emp) => selectedEmployees.includes(emp.employeeId))
+      .map((emp) => ({
+        employeeId: emp.employeeId,
+        name: emp.name,
+        date: selectedDate,
+        shift: selectedShift,
+        status: 'Present',
+        checkInTime: new Date().toISOString(),
+        checkOutTime: null,
+      }));
+
+    if (toSubmit.length === 0) {
+      alert('No employees selected.');
       return;
     }
+
     try {
-      setIsSubmitting(true);
-      setMessage('');
-      const records = employees.map((emp) => {
-        const isPresent = presentIds.includes(emp.employeeId) || localMarked.includes(emp.employeeId);
-        return {
-          employeeId: emp.employeeId,
-          name: emp.name,
-          date: selectedDate,
-          shift: selectedShift,
-          status: isPresent ? 'Present' : 'Absent',
-          checkInTime: isPresent ? new Date().toISOString() : null,
-          checkOutTime: null,
-        };
-      });
       const res = await fetch('/api/attendance', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(records),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(toSubmit),
       });
-      let data;
-      const contentType = res.headers.get('content-type');
-      if (contentType && contentType.includes('application/json')) {
-        data = await res.json();
-      } else {
-        const text = await res.text();
-        throw new Error(text || 'Server error: Non-JSON response received.');
-      }
-      if (res.ok && data.success) {
-        setMessage('✅ Attendance submitted successfully!');
-        setLocalMarked([]);
-      } else {
-        throw new Error(data.message || '❌ Attendance submission failed.');
-      }
-    } catch (error) {
-      console.error('Submit Error:', error);
-      setMessage('❌ Failed to submit attendance. ' + (error.message || 'Unexpected error.'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
-  // Compute present and absent based on backend and local marks
-  const allPresentIds = [...presentIds, ...localMarked];
-  const present = employees.filter((e) => allPresentIds.includes(e.employeeId));
-  const absent = employees.filter((e) => !allPresentIds.includes(e.employeeId));
-
-  // Fetch all attendance records for the "View All Attendance" button
-  const handleViewAllAttendance = async () => {
-    setShowAllAttendance(true);
-    setAllAttendanceLoading(true);
-    try {
-      const res = await fetch('/api/attendance');
+      if (!res.ok) throw new Error('Network error');
       const data = await res.json();
       if (data.success) {
-        setAllAttendance(data.data);
+        alert('Attendance submitted!');
+        setAttendanceRecords((prev) => [...prev, ...toSubmit]);
+        setSelectedEmployees([]);
       } else {
-        setAllAttendance([]);
+        alert(data.message || 'Failed to mark attendance');
       }
     } catch (error) {
-      setAllAttendance([]);
-    } finally {
-      setAllAttendanceLoading(false);
+      console.error(error);
+      alert('Failed to submit attendance');
     }
   };
 
-  // Group attendance by date and shift
-  const groupedAttendance = {};
-  allAttendance.forEach((rec) => {
-    const dateStr = new Date(rec.date).toISOString().slice(0, 10);
-    const key = `${dateStr}__${rec.shift}`;
-    if (!groupedAttendance[key]) groupedAttendance[key] = [];
-    groupedAttendance[key].push(rec);
-  });
+  const getShiftIcon = (shift) => {
+    switch (shift) {
+      case 'Morning': return '🌅';
+      case 'Evening': return '🌆';
+      case 'Night': return '🌙';
+      default: return '⏰';
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-xl text-gray-700">
-        Loading employees...
-      </div>
-    );
-  }
+  const getDepartmentColor = (department) => {
+    const colors = {
+      'HR': 'bg-purple-100 text-purple-800',
+      'IT': 'bg-blue-100 text-blue-800',
+      'Finance': 'bg-green-100 text-green-800',
+      'Marketing': 'bg-pink-100 text-pink-800',
+      'Operations': 'bg-orange-100 text-orange-800',
+    };
+    return colors[department] || 'bg-gray-100 text-gray-800';
+  };
 
   return (
     <div className="min-h-screen flex bg-[#f6f9fc]">
-      {/* Sidebar */}
-      <aside className="w-20 bg-[#0D1A33] text-white flex flex-col items-center py-6 justify-between h-screen">
-        <div>
-          <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow">
+      {/* Sidebar - sticky and fixes color break, logout floatable */}
+      <aside className="sticky top-0 h-screen w-20 bg-[#0D1A33] text-white flex flex-col items-center py-6 justify-between z-40">
+        <div className="w-full">
+          <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow mx-auto">
             R
           </div>
           <nav className="flex flex-col gap-8 w-full items-center">
@@ -201,20 +170,23 @@ export default function HRMSAttendance() {
             ))}
           </nav>
         </div>
-        <button
-          onClick={() => router.push("/login")}
-          className="mb-4 flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors"
-          style={{ color: "#fff", fontSize: "13px" }}
-        >
-          <span style={{ fontSize: "22px" }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-              <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </span>
-          <span style={{ fontSize: "11px" }}>Logout</span>
-        </button>
+        {/* Floatable logout button */}
+        <div className="w-full flex justify-center">
+          <button
+            onClick={() => router.push("/login")}
+            className="fixed bottom-6 left-6 flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors z-50"
+            style={{ color: "#fff", fontSize: "13px" }}
+          >
+            <span style={{ fontSize: "22px" }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </span>
+            <span style={{ fontSize: "11px" }}>Logout</span>
+          </button>
+        </div>
       </aside>
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
@@ -225,238 +197,211 @@ export default function HRMSAttendance() {
           </span>
         </header>
         <div className="w-full h-[2px] bg-[#e9eef6]" />
-        {/* --- Your original attendance code below --- */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-6xl mx-auto p-6">
-            <h1 className="text-4xl font-bold text-gray-800 mb-6 text-center">HRMS Attendance System</h1>
-
-            {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6 justify-center items-end">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Select Date:</label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="mt-1 px-4 py-2 border rounded-lg w-full text-black"
-                />
+        {/* Attendance Content */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center gap-3 mb-4">
+                <div className="p-3 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl shadow-lg">
+                  <Users className="w-8 h-8 text-white" />
+                </div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  Attendance Management
+                </h1>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Select Shift:</label>
-                <select
-                  value={selectedShift}
-                  onChange={(e) => setSelectedShift(e.target.value)}
-                  className="mt-1 px-4 py-2 border rounded-lg w-full text-black"
-                >
-                  <option>Morning</option>
-                  <option>Evening</option>
-                  <option>Night</option>
-                </select>
-              </div>
-              <button
-                onClick={handleViewAllAttendance}
-                className="ml-0 md:ml-4 mb-2 md:mb-0 bg-blue-500 hover:bg-blue-700 text-white px-4 py-2 rounded"
-              >
-                View All Attendance
-              </button>
+              <p className="text-slate-600 text-lg">Mark employee attendance with ease</p>
             </div>
 
-            {/* Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-green-100 border-l-4 border-green-500 p-4 rounded-lg shadow">
-                <h2 className="text-lg font-semibold text-green-800">Present</h2>
-                <p className="text-2xl font-bold text-green-700">{present.length}</p>
-              </div>
-              <div className="bg-red-100 border-l-4 border-red-500 p-4 rounded-lg shadow">
-                <h2 className="text-lg font-semibold text-red-800">Absent</h2>
-                <p className="text-2xl font-bold text-red-700">{absent.length}</p>
-              </div>
-              <div className="bg-blue-100 border-l-4 border-blue-500 p-4 rounded-lg shadow">
-                <h2 className="text-lg font-semibold text-blue-800">Total Employees</h2>
-                <p className="text-2xl font-bold text-blue-700">{employees.length}</p>
-              </div>
-            </div>
+            {/* Controls Card */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Date Selector */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <Calendar className="w-4 h-4" />
+                    Select Date
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-slate-700"
+                  />
+                </div>
 
-            {/* Table */}
-            <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
-              <table className="w-full text-sm md:text-base border border-gray-300">
-                <thead className="bg-gray-300 text-gray-800">
-                  <tr>
-                    <th className="py-3 px-4 border text-left">ID</th>
-                    <th className="py-3 px-4 border text-left">Name</th>
-                    <th className="py-3 px-4 border text-left">Status</th>
-                    <th className="py-3 px-4 border text-left">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employees.map((emp) => (
-                    <tr key={emp._id} className="border-t hover:bg-gray-100">
-                      <td className="py-3 px-4 border text-black">{emp.employeeId}</td>
-                      <td className="py-3 px-4 border text-black">{emp.name}</td>
-                      <td className="py-3 px-4 border">
-                        {allPresentIds.includes(emp.employeeId) ? (
-                          <span className="text-green-600 font-semibold">Present</span>
-                        ) : (
-                          <span className="text-red-500 font-semibold">Absent</span>
-                        )}
-                      </td>
-                      {/* Action column with Undo */}
-                      <td className="py-3 px-4 border">
-                        {localMarked.includes(emp.employeeId) ? (
-                          <button
-                            onClick={() => handleUndo(emp.employeeId)}
-                            className="px-4 py-2 rounded bg-yellow-500 hover:bg-yellow-600 text-white"
-                          >
-                            Undo
-                          </button>
-                        ) : allPresentIds.includes(emp.employeeId) ? (
-                          <button
-                            disabled
-                            className="px-4 py-2 rounded bg-gray-400 cursor-not-allowed text-white"
-                          >
-                            Marked
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleMark(emp.employeeId)}
-                            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            Mark Attendance
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Presentees */}
-            {selectedDate && (
-              <div className="mt-8 bg-white p-4 rounded-lg shadow-md">
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                  Presentees on {selectedDate} ({selectedShift})
-                </h2>
-                {present.length > 0 ? (
-                  <ul className="list-disc pl-6 text-gray-700">
-                    {present.map((emp, idx) => (
-                      <li key={`${emp._id}_${idx}`}>{emp.name} ({emp.employeeId})</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-500">No one marked present yet.</p>
-                )}
-              </div>
-            )}
-
-            {/* All Attendance Modal/Section */}
-            {showAllAttendance && (
-              <div className="fixed inset-0 bg-gradient-to-br from-blue-200/80 to-blue-400/80 flex items-center justify-center z-50">
-                <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-y-auto p-8 relative border-4 border-blue-300">
-                  <button
-                    className="absolute top-4 right-6 text-blue-400 hover:text-blue-700 text-3xl font-bold transition"
-                    onClick={() => setShowAllAttendance(false)}
-                    aria-label="Close"
+                {/* Shift Selector */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <Clock className="w-4 h-4" />
+                    Select Shift
+                  </label>
+                  <select
+                    value={selectedShift}
+                    onChange={(e) => setSelectedShift(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-slate-700"
                   >
-                    &times;
-                  </button>
-                  <h2 className="text-3xl font-extrabold mb-8 text-center text-blue-700  top-0 bg-white z-10 pb-4 border-b-2 border-blue-100 shadow-sm">
-                    <span className="inline-block align-middle mr-2">📊</span>
-                    All Attendance Records
-                  </h2>
-                  {allAttendanceLoading ? (
-                    <div className="text-center py-8 text-lg text-blue-700">Loading...</div>
-                  ) : Object.keys(groupedAttendance).length === 0 ? (
-                    <div className="text-center py-8 text-lg text-blue-700">No attendance records found.</div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {Object.entries(groupedAttendance).map(([key, records]) => {
-                        const [date, shift] = key.split('__');
-                        const presentList = records.filter(r => r.status === 'Present');
-                        const absentList = records.filter(r => r.status === 'Absent');
-                        return (
-                          <div
-                            key={key}
-                            className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl shadow-lg p-6 border-2 border-blue-200 hover:scale-[1.02] transition-transform"
-                          >
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="font-bold text-lg text-blue-900 flex items-center gap-2">
-                                <span className="inline-block text-2xl">🗓️</span>
-                                {date}
-                              </div>
-                              <span className={`px-4 py-1 rounded-full text-sm font-semibold shadow
-                                ${shift === 'Morning' ? 'bg-blue-200 text-blue-800' :
-                                  shift === 'Evening' ? 'bg-blue-400 text-white' :
-                                  'bg-blue-700 text-white'}`}>
-                                {shift}
-                              </span>
-                            </div>
-                            <div className="flex flex-col gap-4">
-                              <div>
-                                <div className="font-semibold text-blue-700 flex items-center gap-2 mb-1">
-                                  <span className="text-xl">✅</span> Present
-                                </div>
-                                {presentList.length > 0 ? (
-                                  <ul className="list-none pl-0">
-                                    {presentList.map((r, idx) => (
-                                      <li
-                                        key={`${r.employeeId}_${r.date}_${r.shift}_${r.status}_${idx}`}
-                                        className="flex items-center gap-2 py-1"
-                                      >
-                                        <span className="inline-block text-blue-500">●</span>
-                                        <span className="font-medium text-blue-900">{r.name}</span>
-                                        <span className="text-xs text-blue-400">({r.employeeId})</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <div className="text-blue-300 italic">None</div>
-                                )}
-                              </div>
-                              <div>
-                                <div className="font-semibold text-blue-400 flex items-center gap-2 mb-1">
-                                  <span className="text-xl">❌</span> Absent
-                                </div>
-                                {absentList.length > 0 ? (
-                                  <ul className="list-none pl-0">
-                                    {absentList.map((r, idx) => (
-                                      <li
-                                        key={`${r.employeeId}_${r.date}_${r.shift}_${r.status}_${idx}`}
-                                        className="flex items-center gap-2 py-1"
-                                      >
-                                        <span className="inline-block text-blue-200">●</span>
-                                        <span className="font-medium text-blue-700">{r.name}</span>
-                                        <span className="text-xs text-blue-300">({r.employeeId})</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <div className="text-blue-200 italic">None</div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                    <option value="Morning">🌅 Morning Shift</option>
+                    <option value="Evening">🌆 Evening Shift</option>
+                    <option value="Night">🌙 Night Shift</option>
+                  </select>
+                </div>
+
+                {/* Search */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                    <Search className="w-4 h-4" />
+                    Search Employees
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, ID, or department..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-slate-700"
+                    />
+                  </div>
                 </div>
               </div>
-            )}
-
-            {/* Submit Button */}
-            <div className="mt-6 text-center">
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded text-lg"
-              >
-                {isSubmitting ? 'Submitting...' : 'Submit Attendance'}
-              </button>
-              {message && <p className="mt-4 text-sm text-gray-700">{message}</p>}
             </div>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="relative">
+                  <div className="w-16 h-16 border-4 border-blue-200 rounded-full animate-spin"></div>
+                  <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
+                </div>
+                <p className="mt-4 text-slate-600 font-medium">Loading employees...</p>
+              </div>
+            ) : unmarkedEmployees.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
+                  <CheckCircle className="w-10 h-10 text-green-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-green-600 mb-2">All Set!</h3>
+                <p className="text-slate-600">All employees are marked present for {getShiftIcon(selectedShift)} {selectedShift} shift</p>
+              </div>
+            ) : (
+              <>
+                {/* Stats and Actions Bar */}
+                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 mb-6">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-slate-800">{filteredEmployees.length}</div>
+                        <div className="text-sm text-slate-600">Unmarked</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{selectedEmployees.length}</div>
+                        <div className="text-sm text-slate-600">Selected</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{attendanceRecords.length}</div>
+                        <div className="text-sm text-slate-600">Present</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-3">
+                      <button
+                        onClick={selectAll}
+                        className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        onClick={deselectAll}
+                        className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Employee Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                  {filteredEmployees.map((emp) => (
+                    <div
+                      key={emp.employeeId}
+                      className={`relative bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border-2 transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer ${
+                        selectedEmployees.includes(emp.employeeId)
+                          ? 'border-green-400 bg-gradient-to-br from-green-50 to-white ring-2 ring-green-200'
+                          : 'border-white/50 hover:border-blue-200'
+                      }`}
+                      onClick={() => toggleSelect(emp.employeeId)}
+                    >
+                      {/* Selection Indicator */}
+                      <div className={`absolute top-3 right-3 w-6 h-6 rounded-full transition-all duration-200 ${
+                        selectedEmployees.includes(emp.employeeId)
+                          ? 'bg-green-500 text-white'
+                          : 'bg-slate-200 text-slate-400'
+                      } flex items-center justify-center`}>
+                        {selectedEmployees.includes(emp.employeeId) ? (
+                          <CheckCircle className="w-4 h-4" />
+                        ) : (
+                          <div className="w-3 h-3 rounded-full border-2 border-slate-400"></div>
+                        )}
+                      </div>
+
+                      <div className="p-6">
+                        {/* Employee Avatar */}
+                        <div className="w-16 h-16 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4 mx-auto">
+                          {emp.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        </div>
+
+                        {/* Employee Info */}
+                        <div className="text-center space-y-2">
+                          <h3 className="font-bold text-slate-800 text-lg">{emp.name}</h3>
+                          <p className="text-slate-600 font-medium">ID: {emp.employeeId}</p>
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getDepartmentColor(emp.department)}`}>
+                            {emp.department}
+                          </span>
+                        </div>
+
+                        {/* Action Button */}
+                        <div className="mt-4">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleSelect(emp.employeeId);
+                            }}
+                            className={`w-full py-2 px-4 rounded-lg font-semibold transition-all duration-200 ${
+                              selectedEmployees.includes(emp.employeeId)
+                                ? 'bg-red-500 hover:bg-red-600 text-white'
+                                : 'bg-green-500 hover:bg-green-600 text-white'
+                            }`}
+                          >
+                            {selectedEmployees.includes(emp.employeeId) ? 'Remove' : 'Mark Present'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleSubmit}
+                    disabled={selectedEmployees.length === 0}
+                    className={`px-8 py-4 rounded-2xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${
+                      selectedEmployees.length > 0
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-green-200'
+                        : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-6 h-6" />
+                      Submit Attendance ({selectedEmployees.length} selected)
+                    </div>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

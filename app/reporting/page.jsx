@@ -9,7 +9,8 @@ export default function EmployeeReport() {
     { label: "Homepage", icon: "🏠", route: "/homepage" },
     { label: "Employees", icon: "👥",route:"/employees" },
     { label: "Interns", icon: "👥", route: "/intern" },
-    { label: "Attendance and Timing", icon: "🗓️" },
+    { label: "Attendance and Timing", icon: "🗓️" ,route: "/attendance"},
+    { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
     { label: "Reporting", icon: "⏱️", route: "/reporting" },
   ];
 

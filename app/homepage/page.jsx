@@ -9,7 +9,8 @@ export default function Homepage() {
     { label: "Homepage", icon: "🏠", route: "/homepage" },
     { label: "Employees", icon: "👥", route: "/employees" },
     { label: "Intern", icon: "👥", route: "/intern" },
-    { label: "Attendance", icon: "🗓️", route: "/attendance" },
+    { label: "Attendance and timing", icon: "🗓️", route: "/attendance" },
+    { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
     { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
   ];
 
@@ -21,6 +22,7 @@ export default function Homepage() {
   const [activeEmpId, setActiveEmpId] = useState(null);
   const [showAllEmployees, setShowAllEmployees] = useState(false);
 
+  // Fetch employees and attendance marked from backend
   useEffect(() => {
     setLoading(true);
     fetch("/api/employees")
@@ -37,16 +39,23 @@ export default function Homepage() {
       });
   }, []);
 
+  // Get today's date in YYYY-MM-DD
   const today = new Date().toISOString().slice(0, 10);
+
+  // Filter attendance records for today
   const todayAttendance = attendance.filter(
-    (a) => a.date && a.date.slice(0, 10) === today
+    (a) => a.date && new Date(a.date).toISOString().slice(0, 10) === today
   );
+
+  // Get present and absent employee IDs from attendance records
   const presentIds = todayAttendance.filter((a) => a.status === "Present").map((a) => a.employeeId);
   const absentIds = todayAttendance.filter((a) => a.status === "Absent").map((a) => a.employeeId);
 
+  // Get present and absent employees
   const presentEmployees = employees.filter((emp) => presentIds.includes(emp.employeeId));
   const absentEmployees = employees.filter((emp) => absentIds.includes(emp.employeeId));
 
+  // Calculate counts for graph
   const presentCount = presentEmployees.length;
   const absentCount = absentEmployees.length;
 
@@ -107,9 +116,10 @@ export default function Homepage() {
 
   return (
     <div className="min-h-screen flex bg-[#f6f9fc]">
-      <aside className="w-20 bg-[#0D1A33] text-white flex flex-col items-center py-6 justify-between h-screen">
-        <div>
-          <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow">
+      {/* Sidebar - sticky and logout floatable */}
+      <aside className="sticky top-0 h-screen w-20 bg-[#0D1A33] text-white flex flex-col items-center py-6 justify-between z-40">
+        <div className="w-full">
+          <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow mx-auto">
             R
           </div>
           <nav className="flex flex-col gap-8 w-full items-center">
@@ -125,20 +135,23 @@ export default function Homepage() {
             ))}
           </nav>
         </div>
-        <button
-          onClick={() => router.push("/login")}
-          className="mb-4 flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors"
-          style={{ color: "#fff", fontSize: "13px" }}
-        >
-          <span style={{ fontSize: "22px" }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-              <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </span>
-          <span style={{ fontSize: "11px" }}>Logout</span>
-        </button>
+        {/* Floatable logout button */}
+        <div className="w-full flex justify-center">
+          <button
+            onClick={() => router.push("/login")}
+            className="fixed bottom-6 left-6 flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors z-50"
+            style={{ color: "#fff", fontSize: "13px" }}
+          >
+            <span style={{ fontSize: "22px" }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </span>
+            <span style={{ fontSize: "11px" }}>Logout</span>
+          </button>
+        </div>
       </aside>
       <div className="flex-1 flex flex-col">
         <header className="bg-[#0D1A33] shadow flex items-center px-8 h-16">
@@ -149,6 +162,7 @@ export default function Homepage() {
         <div className="w-full h-[2px] bg-[#e9eef6]" />
         <main className="flex-1 flex flex-row gap-8 p-8">
           <div className="flex-1 flex flex-col gap-8">
+            {/* Only Present and Absent Boxes */}
             <div className="flex gap-8 mb-4">
               <div className="flex-1 bg-green-100 border-l-4 border-green-500 p-6 rounded-xl shadow flex flex-col items-center justify-center">
                 <span className="text-2xl font-bold text-green-700 mb-2">Present</span>
@@ -202,7 +216,7 @@ export default function Homepage() {
               <h3 className="text-lg font-bold text-[#0D1A33] mb-6">Attendance Graph for Today</h3>
               <div className="flex flex-col md:flex-row gap-8">
                 <div className="flex-1 flex flex-col items-center">
-                  <svg width="900" height="100" style={{ background: "transparent" }}>
+                  <svg width="600" height="100" style={{ background: "transparent" }}>
                     <defs>
                       <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#4ade80" stopOpacity="0.3" />
@@ -213,28 +227,13 @@ export default function Homepage() {
                         <stop offset="100%" stopColor="#f87171" stopOpacity="0" />
                       </linearGradient>
                     </defs>
-                    <polyline
-                      fill="none"
-                      stroke="#4ade80"
-                      strokeWidth="5"
-                      points={`0,80 150,${80 - presentCount * 3} 300,${80 - presentCount * 4} 450,${80 - presentCount * 3.5} 600,${80 - presentCount * 5} 750,${80 - presentCount * 3} 900,${80 - presentCount * 4}`}
-                      opacity="0.7"
-                    />
-                    <polygon
-                      points={`0,80 150,${80 - presentCount * 3} 300,${80 - presentCount * 4} 450,${80 - presentCount * 3.5} 600,${80 - presentCount * 5} 750,${80 - presentCount * 3} 900,${80 - presentCount * 4} 900,100 0,100`}
-                      fill="url(#presentGradient)"
-                    />
-                    <polyline
-                      fill="none"
-                      stroke="#f87171"
-                      strokeWidth="5"
-                      points={`0,80 150,${80 - absentCount * 3} 300,${80 - absentCount * 4} 450,${80 - absentCount * 3.5} 600,${80 - absentCount * 5} 750,${80 - absentCount * 3} 900,${80 - absentCount * 4}`}
-                      opacity="0.7"
-                    />
-                    <polygon
-                      points={`0,80 150,${80 - absentCount * 3} 300,${80 - absentCount * 4} 450,${80 - absentCount * 3.5} 600,${80 - absentCount * 5} 750,${80 - absentCount * 3} 900,${80 - absentCount * 4} 900,100 0,100`}
-                      fill="url(#absentGradient)"
-                    />
+                    {/* Present */}
+                    <rect x="80" y={100 - presentCount * 5} width="120" height={presentCount * 5} fill="url(#presentGradient)" />
+                    {/* Absent */}
+                    <rect x="260" y={100 - absentCount * 5} width="120" height={absentCount * 5} fill="url(#absentGradient)" />
+                    {/* Labels */}
+                    <text x="140" y="95" textAnchor="middle" fill="#4ade80" fontSize="18" fontWeight="bold">{presentCount}</text>
+                    <text x="320" y="95" textAnchor="middle" fill="#f87171" fontSize="18" fontWeight="bold">{absentCount}</text>
                   </svg>
                   <div className="flex gap-8 mt-4">
                     <div className="flex items-center gap-2">

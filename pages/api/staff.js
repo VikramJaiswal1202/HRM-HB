@@ -2,7 +2,7 @@ import { IncomingForm } from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import connectDB from '@/lib/dbConnect';
-import Intern from '@/models/internModel';
+import Staff from '@/models/staffModel';
 
 export const config = {
   api: {
@@ -30,33 +30,33 @@ export default async function handler(req, res) {
 
       try {
         const resumeFile = files.resume?.[0];
-        const moreFile = files.more?.[0];
+        const documentsFile = files.documents?.[0];
 
-        const intern = new Intern({
+        const staff = new Staff({
           name: fields.name?.[0],
           email: fields.email?.[0],
           mobileNumber: fields.mobileNumber?.[0],
-          roll: fields.roll?.[0],
           department: fields.department?.[0],
+          designation: fields.designation?.[0],
           employeeId: fields.employeeId?.[0],
           resumeUrl: resumeFile ? `/uploads/${resumeFile.newFilename} `: '',
-          moreFileUrl: moreFile ? `/uploads/${moreFile.newFilename} `: '',
+          documentsUrl: documentsFile ? `/uploads/${documentsFile.newFilename} `: '',
         });
 
-        await intern.save();
-        return res.status(200).json({ success: true, intern });
+        await staff.save();
+        return res.status(200).json({ success: true, staff });
       } catch (error) {
         console.error('Save error:', error);
-        return res.status(500).json({ success: false, error: 'Failed to save intern' });
+        return res.status(500).json({ success: false, error: 'Failed to save staff' });
       }
     });
   } else if (req.method === 'GET') {
     try {
-      const interns = await Intern.find().sort({ createdAt: -1 });
-      return res.status(200).json({ success: true, interns });
+      const staffList = await Staff.find().sort({ createdAt: -1 });
+      return res.status(200).json({ success: true, staffList });
     } catch (err) {
       console.error('Fetch error:', err);
-      return res.status(500).json({ success: false, error: 'Failed to fetch interns' });
+      return res.status(500).json({ success: false, error: 'Failed to fetch staff list' });
     }
   } else {
     return res.status(405).json({ success: false, message: 'Method Not Allowed' });

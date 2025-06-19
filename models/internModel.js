@@ -7,8 +7,8 @@ const internSchema = new mongoose.Schema({
   roll: String,
   department: String,
   employeeId: { type: String, unique: true },
-  resumeUrl: String,
-  moreFileUrl: String,
+  resumeUrl: String,        // Stores URL or path of uploaded resume
+  moreFileUrl: String,      // Stores URL or path of uploaded "more" file
   createdAt: { type: Date, default: Date.now },
 });
 
