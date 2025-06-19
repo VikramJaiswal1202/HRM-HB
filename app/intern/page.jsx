@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
-export default function EmployeesPage() {
+export default function InternsPage() {
   const router = useRouter();
 
   const sidebarItems = [
@@ -15,9 +15,9 @@ export default function EmployeesPage() {
     { label: "Reporting", icon: "⏱️", route: "/reporting" },
   ];
 
-  const [employees, setEmployees] = useState([]);
+  const [interns, setInterns] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedIntern, setSelectedIntern] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addForm, setAddForm] = useState({
@@ -25,7 +25,7 @@ export default function EmployeesPage() {
     email: "",
     role: "",
     department: "",
-    employeeId: "",
+    internId: "",
     resume: null,
     more: null,
   });
@@ -39,42 +39,42 @@ export default function EmployeesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[1]);
 
-  // Fetch all employees from backend
-  const fetchEmployees = () => {
+  // Fetch all interns from backend
+  const fetchInterns = () => {
     setLoading(true);
-    fetch("/api/employees")
+    fetch("/api/interns")
       .then((res) => res.json())
       .then((data) => {
-        const emps = (data.employees || []).map((emp) => ({
-          ...emp,
-          role: emp.role || emp.roll || "",
+        const ints = (data.interns || []).map((intern) => ({
+          ...intern,
+          role: intern.role || intern.roll || "",
         }));
-        setEmployees(emps);
+        setInterns(ints);
         setLoading(false);
       })
       .catch(() => setLoading(false));
   };
 
   useEffect(() => {
-    fetchEmployees();
+    fetchInterns();
   }, []);
 
   // Pagination logic
-  const totalPages = Math.ceil(employees.length / pageSize);
-  const paginatedEmployees = employees.slice(
+  const totalPages = Math.ceil(interns.length / pageSize);
+  const paginatedInterns = interns.slice(
     (currentPage - 1) * pageSize,
     currentPage * pageSize
   );
 
-  const handleRowClick = (emp) => {
-    setSelectedEmployee(emp);
+  const handleRowClick = (intern) => {
+    setSelectedIntern(intern);
     setShowDetails(true);
     setDetailsForm({
-      email: emp.email || "",
+      email: intern.email || "",
       resume: null,
       more: null,
-      role: emp.role || "",
-      department: emp.department || "",
+      role: intern.role || "",
+      department: intern.department || "",
     });
   };
 
@@ -106,20 +106,20 @@ export default function EmployeesPage() {
     }));
   };
 
-  // Add employee and refresh list from backend
-  const handleAddEmployee = async (e) => {
+  // Add intern and refresh list from backend
+  const handleAddIntern = async (e) => {
     e.preventDefault();
     const formData = new FormData();
     formData.append("name", addForm.name);
     formData.append("email", addForm.email);
     formData.append("role", addForm.role);
     formData.append("department", addForm.department);
-    formData.append("employeeId", addForm.employeeId);
+    formData.append("internId", addForm.internId);
     if (addForm.resume) formData.append("resume", addForm.resume);
     if (addForm.more) formData.append("more", addForm.more);
 
     try {
-      const res = await fetch("/api/fulltime", {
+      const res = await fetch("/api/interns", {
         method: "POST",
         body: formData,
       });
@@ -131,23 +131,23 @@ export default function EmployeesPage() {
           email: "",
           role: "",
           department: "",
-          employeeId: "",
+          internId: "",
           resume: null,
           more: null,
         });
-        fetchEmployees();
+        fetchInterns();
       } else {
-        alert(data.error || "Failed to add employee.");
+        alert(data.error || "Failed to add intern.");
       }
     } catch (err) {
-      alert("Failed to add employee.");
+      alert("Failed to add intern.");
     }
   };
 
-  // Update employee details (email, role, department, resume, more)
+  // Update intern details (email, role, department, resume, more)
   const handleSaveDetails = async (e) => {
     e.preventDefault();
-    if (!selectedEmployee) return;
+    if (!selectedIntern) return;
     const formData = new FormData();
     formData.append("email", detailsForm.email);
     formData.append("role", detailsForm.role);
@@ -156,14 +156,14 @@ export default function EmployeesPage() {
     if (detailsForm.more) formData.append("more", detailsForm.more);
 
     try {
-      const res = await fetch(`/api/employees/${selectedEmployee._id}`, {
+      const res = await fetch(`/api/interns/${selectedIntern._id}`, {
         method: "PATCH",
         body: formData,
       });
       const data = await res.json();
       if (data.success) {
         setShowDetails(false);
-        fetchEmployees();
+        fetchInterns();
       } else {
         alert(data.error || "Failed to update details.");
       }
@@ -223,31 +223,31 @@ export default function EmployeesPage() {
           </span>
         </header>
         <div className="w-full h-[2px] bg-[#e9eef6]" />
-        {/* Employee Table */}
+        {/* Intern Table */}
         <main className="flex-1 flex flex-col items-center justify-start w-full py-8">
           <div className="w-full max-w-6xl flex flex-col gap-8">
             <div className="bg-white rounded-xl shadow p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold text-[#0D1A33] flex items-center gap-2">
-                  Employees
+                  Interns
                 </h2>
                 <button
                   className="bg-[#4267b2] text-white px-4 py-1 rounded hover:bg-[#314d80] transition"
                   onClick={() => setShowAdd(true)}
                 >
-                  Add Employee
+                  Add Intern
                 </button>
               </div>
               {loading ? (
                 <div className="text-[#0D1A33] text-center py-8">Loading...</div>
-              ) : employees.length === 0 ? (
-                <div className="text-gray-400 text-center py-4">No employees found.</div>
+              ) : interns.length === 0 ? (
+                <div className="text-gray-400 text-center py-4">No interns found.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full border border-[#e9eef6] rounded-lg text-base">
                     <thead>
                       <tr className="bg-[#f4f7fb] text-[#0D1A33]">
-                        <th className="py-3 px-6 border-b">Employee ID</th>
+                        <th className="py-3 px-6 border-b">Intern ID</th>
                         <th className="py-3 px-6 border-b">Name</th>
                         <th className="py-3 px-6 border-b">Email</th>
                         <th className="py-3 px-6 border-b">Department</th>
@@ -255,17 +255,17 @@ export default function EmployeesPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedEmployees.map((emp, idx) => (
+                      {paginatedInterns.map((intern, idx) => (
                         <tr
-                          key={emp.employeeId || idx}
+                          key={intern.internId || idx}
                           className="text-[#0D1A33] text-base hover:bg-[#e9eef6] transition cursor-pointer"
-                          onClick={() => handleRowClick(emp)}
+                          onClick={() => handleRowClick(intern)}
                         >
-                          <td className="py-3 px-6 border-b">{emp.employeeId}</td>
-                          <td className="py-3 px-6 border-b">{emp.name}</td>
-                          <td className="py-3 px-6 border-b">{emp.email || <span className="text-gray-400">-</span>}</td>
-                          <td className="py-3 px-6 border-b">{emp.department || <span className="text-gray-400">-</span>}</td>
-                          <td className="py-3 px-6 border-b">{emp.role || <span className="text-gray-400">-</span>}</td>
+                          <td className="py-3 px-6 border-b">{intern.internId}</td>
+                          <td className="py-3 px-6 border-b">{intern.name}</td>
+                          <td className="py-3 px-6 border-b">{intern.email || <span className="text-gray-400">-</span>}</td>
+                          <td className="py-3 px-6 border-b">{intern.department || <span className="text-gray-400">-</span>}</td>
+                          <td className="py-3 px-6 border-b">{intern.role || <span className="text-gray-400">-</span>}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -310,7 +310,7 @@ export default function EmployeesPage() {
             </div>
           </div>
         </main>
-        {/* Add Employee Modal */}
+        {/* Add Intern Modal */}
         {showAdd && (
           <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: "rgba(246,249,252,0.95)" }}>
             <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-lg relative">
@@ -322,11 +322,11 @@ export default function EmployeesPage() {
                 &times;
               </button>
               <h3 className="text-xl font-bold mb-4 text-[#0D1A33]">
-                Add Employee
+                Add Intern
               </h3>
               <form
                 className="flex flex-col gap-4"
-                onSubmit={handleAddEmployee}
+                onSubmit={handleAddIntern}
                 encType="multipart/form-data"
               >
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
@@ -368,12 +368,12 @@ export default function EmployeesPage() {
                   />
                 </label>
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
-                  Employee ID
+                  Intern ID
                   <input
                     type="text"
                     className="border border-[#e9eef6] rounded-lg px-3 py-2 bg-[#f4f7fb]"
-                    value={addForm.employeeId}
-                    onChange={e => handleAddInputChange("employeeId", e.target.value)}
+                    value={addForm.internId}
+                    onChange={e => handleAddInputChange("internId", e.target.value)}
                   />
                 </label>
                 <label className="flex flex-col gap-1 font-medium text-[#0D1A33]">
@@ -407,14 +407,14 @@ export default function EmployeesPage() {
                   type="submit"
                   className="mt-2 bg-[#4267b2] hover:bg-[#314d80] text-white font-bold py-2 rounded-lg transition-colors"
                 >
-                  Add Employee
+                  Add Intern
                 </button>
               </form>
             </div>
           </div>
         )}
         {/* Details Modal */}
-        {showDetails && selectedEmployee && (
+        {showDetails && selectedIntern && (
           <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: "rgba(246,249,252,0.95)" }}>
             <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-lg relative">
               <button
@@ -425,25 +425,25 @@ export default function EmployeesPage() {
                 &times;
               </button>
               <h3 className="text-xl font-bold mb-4 text-[#0D1A33]">
-                Employee Details: {selectedEmployee.name}
+                Intern Details: {selectedIntern.name}
               </h3>
               {/* Show existing details */}
               <div className="mb-4 bg-[#e9eef6] rounded-lg p-4">
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Name:</span> {selectedEmployee.name}</div>
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Employee ID:</span> {selectedEmployee.employeeId}</div>
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Email:</span> {selectedEmployee.email || <span className="text-gray-400">-</span>}</div>
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Department:</span> {selectedEmployee.department || <span className="text-gray-400">-</span>}</div>
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Role:</span> {selectedEmployee.role || <span className="text-gray-400">-</span>}</div>
-                {selectedEmployee.resumeUrl && (
+                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Name:</span> {selectedIntern.name}</div>
+                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Intern ID:</span> {selectedIntern.internId}</div>
+                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Email:</span> {selectedIntern.email || <span className="text-gray-400">-</span>}</div>
+                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Department:</span> {selectedIntern.department || <span className="text-gray-400">-</span>}</div>
+                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Role:</span> {selectedIntern.role || <span className="text-gray-400">-</span>}</div>
+                {selectedIntern.resumeUrl && (
                   <div className="mb-2 text-[#0D1A33]">
                     <span className="font-semibold">Resume:</span>{" "}
-                    <a href={selectedEmployee.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+                    <a href={selectedIntern.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
                   </div>
                 )}
-                {selectedEmployee.moreFileUrl && (
+                {selectedIntern.moreFileUrl && (
                   <div className="mb-2 text-[#0D1A33]">
                     <span className="font-semibold">More File:</span>{" "}
-                    <a href={selectedEmployee.moreFileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+                    <a href={selectedIntern.moreFileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
                   </div>
                 )}
               </div>

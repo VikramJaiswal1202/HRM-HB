@@ -7,7 +7,8 @@ export default function EmployeeReport() {
 
   const sidebarItems = [
     { label: "Homepage", icon: "🏠", route: "/homepage" },
-    { label: "Employees", icon: "👥" },
+    { label: "Employees", icon: "👥",route:"/employees" },
+    { label: "Interns", icon: "👥", route: "/intern" },
     { label: "Attendance and Timing", icon: "🗓️" },
     { label: "Reporting", icon: "⏱️", route: "/reporting" },
   ];
