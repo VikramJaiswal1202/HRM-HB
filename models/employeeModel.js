@@ -1,11 +1,15 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const employeeSchema = new mongoose.Schema({
-  employeeId: { type: String, required: true, unique: true },
-  name: { type: String, required: true },
+const internSchema = new mongoose.Schema({
+  name: String,
   email: String,
+  mobileNumber: String,
+  roll: String,
   department: String,
+  employeeId: { type: String, unique: true },
+  resumeUrl: String,        // Stores URL or path of uploaded resume
+  moreFileUrl: String,      // Stores URL or path of uploaded "more" file
+  createdAt: { type: Date, default: Date.now },
 });
 
-const Employee = mongoose.models.Employee || mongoose.model("Employee", employeeSchema);
-export default Employee;
+export default mongoose.models.Intern || mongoose.model('Intern', internSchema);
