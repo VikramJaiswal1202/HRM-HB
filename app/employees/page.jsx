@@ -46,10 +46,10 @@ export default function EmployeesPage() {
   // Fetch all employees from backend
   const fetchEmployees = () => {
     setLoading(true);
-    fetch("/api/staff")
+    fetch("/api/employees")
       .then((res) => res.json())
       .then((data) => {
-        setEmployees(data.staffList || []);
+        setEmployees(data.employees || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -127,7 +127,8 @@ export default function EmployeesPage() {
 
     try {
       setLoading(true);
-      const res = await fetch("/api/staff", {
+      setMessage("");
+      const res = await fetch("/api/employees", {
         method: "POST",
         body: formData,
       });
@@ -144,13 +145,13 @@ export default function EmployeesPage() {
           resume: null,
           documents: null,
         });
-        setMessage("Staff added successfully!");
+        setMessage("✅ Employee added!");
         fetchEmployees();
       } else {
-        setMessage("Error: " + data.error);
+        setMessage(data.error || "❌ Failed to add employee.");
       }
     } catch (err) {
-      setMessage("Something went wrong.");
+      setMessage("❌ Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -169,7 +170,7 @@ export default function EmployeesPage() {
 
     try {
       setLoading(true);
-      const res = await fetch(`/api/staff/${selectedEmployee._id}`, {
+      const res = await fetch(`/api/employees/${selectedEmployee._id}`, {
         method: "PATCH",
         body: formData,
       });
@@ -195,10 +196,10 @@ export default function EmployeesPage() {
 
   return (
     <div className="min-h-screen flex bg-[#f6f9fc]">
-      {/* Sidebar */}
-      <aside className="w-20 bg-[#0D1A33] text-white flex flex-col items-center py-6 justify-between h-screen">
-        <div>
-          <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow">
+      {/* Sidebar - sticky and logout floatable */}
+      <aside className="sticky top-0 h-screen w-20 bg-[#0D1A33] text-white flex flex-col items-center py-6 justify-between z-40">
+        <div className="w-full">
+          <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow mx-auto">
             R
           </div>
           <nav className="flex flex-col gap-8 w-full items-center">
@@ -214,20 +215,23 @@ export default function EmployeesPage() {
             ))}
           </nav>
         </div>
-        <button
-          onClick={() => router.push("/login")}
-          className="mb-4 flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors"
-          style={{ color: "#fff", fontSize: "13px" }}
-        >
-          <span style={{ fontSize: "22px" }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-              <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </span>
-          <span style={{ fontSize: "11px" }}>Logout</span>
-        </button>
+        {/* Floatable logout button */}
+        <div className="w-full flex justify-center">
+          <button
+            onClick={() => router.push("/login")}
+            className="fixed bottom-6 left-6 flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors z-50"
+            style={{ color: "#fff", fontSize: "13px" }}
+          >
+            <span style={{ fontSize: "22px" }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </span>
+            <span style={{ fontSize: "11px" }}>Logout</span>
+          </button>
+        </div>
       </aside>
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
@@ -254,7 +258,7 @@ export default function EmployeesPage() {
                 </button>
               </div>
               {message && (
-                <div className={`mb-4 ${message.includes("success") ? "text-green-600" : "text-red-600"}`}>
+                <div className={`mb-4 ${message.startsWith("✅") ? "text-green-600" : "text-red-600"}`}>
                   {message}
                 </div>
               )}
