@@ -17,12 +17,12 @@ export default function Homepage() {
   const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAllEmployees, setShowAllEmployees] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeDetails, setEmployeeDetails] = useState(null);
-  const [activeEmpId, setActiveEmpId] = useState(null);
-  const [showAllEmployees, setShowAllEmployees] = useState(false);
 
-  // Fetch employees and attendance marked from backend
+  // Fetch employees and today's attendance from backend
   useEffect(() => {
     setLoading(true);
     fetch("/api/employees")
@@ -32,37 +32,39 @@ export default function Homepage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-    fetch("/api/attendance")
+
+    // Fetch only today's attendance for all shifts from backend
+    const today = new Date().toISOString().slice(0, 10);
+    fetch(`/api/attendance?date=${today}`)
       .then((res) => res.json())
       .then((data) => {
         setAttendance(data.data || []);
       });
   }, []);
 
-  // Get today's date in YYYY-MM-DD
+  // Attendance logic (connects to backend)
   const today = new Date().toISOString().slice(0, 10);
+  const presentIds = attendance.filter((a) => a.status === "Present").map((a) => a.employeeId);
+  const absentIds = attendance.filter((a) => a.status === "Absent").map((a) => a.employeeId);
 
-  // Filter attendance records for today
-  const todayAttendance = attendance.filter(
-    (a) => a.date && new Date(a.date).toISOString().slice(0, 10) === today
-  );
-
-  // Get present and absent employee IDs from attendance records
-  const presentIds = todayAttendance.filter((a) => a.status === "Present").map((a) => a.employeeId);
-  const absentIds = todayAttendance.filter((a) => a.status === "Absent").map((a) => a.employeeId);
-
-  // Get present and absent employees
   const presentEmployees = employees.filter((emp) => presentIds.includes(emp.employeeId));
   const absentEmployees = employees.filter((emp) => absentIds.includes(emp.employeeId));
 
-  // Calculate counts for graph
   const presentCount = presentEmployees.length;
   const absentCount = absentEmployees.length;
 
+  const employeesToShow = showAllEmployees ? employees : employees.slice(0, 5);
+
+  // Filter employees by search term
+  const filteredEmployees = employeesToShow.filter(emp =>
+    emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.employeeId?.toString().includes(searchTerm) ||
+    emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Fetch employee details when a name is clicked
   const handleEmployeeClick = async (emp) => {
     setSelectedEmployee(emp);
-    setActiveEmpId(emp.employeeId);
-    setEmployeeDetails(null);
     try {
       const res = await fetch(`/api/employees/${emp._id}`);
       const data = await res.json();
@@ -71,48 +73,6 @@ export default function Homepage() {
       setEmployeeDetails(emp);
     }
   };
-
-  const EmployeeDetailsModal = () =>
-    selectedEmployee && employeeDetails ? (
-      <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
-        <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-lg relative">
-          <button
-            className="absolute top-3 right-3 text-gray-400 hover:text-[#4267b2] text-2xl"
-            onClick={() => {
-              setSelectedEmployee(null);
-              setActiveEmpId(null);
-            }}
-            aria-label="Close"
-          >
-            &times;
-          </button>
-          <h3 className="text-xl font-bold mb-4 text-[#0D1A33]">
-            Employee Details: {employeeDetails.name}
-          </h3>
-          <div className="mb-4 bg-[#e9eef6] rounded-lg p-4 text-[#0D1A33]">
-            <div className="mb-2"><span className="font-semibold">Name:</span> {employeeDetails.name}</div>
-            <div className="mb-2"><span className="font-semibold">Employee ID:</span> {employeeDetails.employeeId}</div>
-            <div className="mb-2"><span className="font-semibold">Email:</span> {employeeDetails.email || <span className="text-gray-400">-</span>}</div>
-            <div className="mb-2"><span className="font-semibold">Department:</span> {employeeDetails.department || <span className="text-gray-400">-</span>}</div>
-            <div className="mb-2"><span className="font-semibold">Role:</span> {employeeDetails.role || <span className="text-gray-400">-</span>}</div>
-            {employeeDetails.resumeUrl && (
-              <div className="mb-2">
-                <span className="font-semibold">Resume:</span>{" "}
-                <a href={employeeDetails.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
-              </div>
-            )}
-            {employeeDetails.moreFileUrl && (
-              <div className="mb-2">
-                <span className="font-semibold">More File:</span>{" "}
-                <a href={employeeDetails.moreFileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    ) : null;
-
-  const employeesToShow = showAllEmployees ? employees : employees.slice(0, 5);
 
   return (
     <div className="min-h-screen flex bg-[#f6f9fc]">
@@ -251,6 +211,14 @@ export default function Homepage() {
           </div>
           <div className="w-64 min-w-[200px] bg-white rounded-xl shadow p-4 h-fit">
             <h3 className="text-lg font-bold text-[#0D1A33] mb-4">Employees</h3>
+            {/* Search Section */}
+            <input
+              type="text"
+              placeholder="Search by name, ID, or department"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full mb-4 px-3 py-2 rounded-lg border border-[#e9eef6] bg-[#f4f7fb] text-[#0D1A33] focus:outline-none"
+            />
             {loading ? (
               <div className="text-gray-400">Loading...</div>
             ) : employees.length === 0 ? (
@@ -258,19 +226,13 @@ export default function Homepage() {
             ) : (
               <>
                 <ul className="space-y-2">
-                  {employeesToShow.map((emp) => (
+                  {filteredEmployees.map((emp) => (
                     <li
                       key={emp.employeeId}
-                      className={`flex items-center gap-2 px-2 py-1 rounded transition cursor-pointer ${
-                        activeEmpId === emp.employeeId
-                          ? "bg-[#4267b2] text-white"
-                          : "hover:bg-[#f4f7fb] text-[#0D1A33]"
-                      }`}
+                      className="flex items-center gap-2 px-2 py-1 rounded transition cursor-pointer hover:bg-[#f4f7fb] text-[#0D1A33]"
                       onClick={() => handleEmployeeClick(emp)}
                     >
-                      <span className={`inline-block rounded-full w-7 h-7 flex items-center justify-center font-bold ${
-                        activeEmpId === emp.employeeId ? "bg-white text-[#4267b2]" : "bg-[#4267b2] text-white"
-                      }`}>
+                      <span className="inline-block rounded-full w-7 h-7 flex items-center justify-center font-bold bg-[#4267b2] text-white">
                         {emp.name?.[0]?.toUpperCase() || "?"}
                       </span>
                       <span className="font-medium">{emp.name}</span>
@@ -288,7 +250,45 @@ export default function Homepage() {
               </>
             )}
           </div>
-          {EmployeeDetailsModal()}
+          {/* Employee Details Modal */}
+          {selectedEmployee && employeeDetails && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
+              <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-lg relative">
+                <button
+                  className="absolute top-3 right-3 text-gray-400 hover:text-[#4267b2] text-2xl"
+                  onClick={() => {
+                    setSelectedEmployee(null);
+                    setEmployeeDetails(null);
+                  }}
+                  aria-label="Close"
+                >
+                  &times;
+                </button>
+                <h3 className="text-xl font-bold mb-4 text-[#0D1A33]">
+                  Employee Details: {employeeDetails.name}
+                </h3>
+                <div className="mb-4 bg-[#e9eef6] rounded-lg p-4 text-[#0D1A33]">
+                  <div className="mb-2"><span className="font-semibold">Name:</span> {employeeDetails.name}</div>
+                  <div className="mb-2"><span className="font-semibold">Employee ID:</span> {employeeDetails.employeeId}</div>
+                  <div className="mb-2"><span className="font-semibold">Email:</span> {employeeDetails.email || <span className="text-gray-400">-</span>}</div>
+                  <div className="mb-2"><span className="font-semibold">Department:</span> {employeeDetails.department || <span className="text-gray-400">-</span>}</div>
+                  <div className="mb-2"><span className="font-semibold">Designation:</span> {employeeDetails.designation || <span className="text-gray-400">-</span>}</div>
+                  {employeeDetails.resumeUrl && (
+                    <div className="mb-2">
+                      <span className="font-semibold">Resume:</span>{" "}
+                      <a href={employeeDetails.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+                    </div>
+                  )}
+                  {employeeDetails.documentsUrl && (
+                    <div className="mb-2">
+                      <span className="font-semibold">Documents:</span>{" "}
+                      <a href={employeeDetails.documentsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
