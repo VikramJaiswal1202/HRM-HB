@@ -8,20 +8,18 @@ const JWT_SECRET = process.env.JWT_SECRET;
 export async function POST(req) {
   try {
     if (!JWT_SECRET) {
-      console.error('JWT_SECRET is undefined');
       return Response.json({ message: 'Server config error' }, { status: 500 });
     }
 
     await dbConnect();
 
-    const body = await req.json();
-    const { username, password } = body;
+    const { username, password, role } = await req.json();
 
-    if (!username || !password) {
-      return Response.json({ message: 'Missing credentials' }, { status: 400 });
+    if (!username || !password || !role) {
+      return Response.json({ message: 'Missing credentials or role' }, { status: 400 });
     }
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username, role: role.toLowerCase() });
     if (!user) {
       return Response.json({ message: 'Invalid credentials' }, { status: 401 });
     }
@@ -35,7 +33,7 @@ export async function POST(req) {
       {
         userId: user._id,
         role: user.role,
-        username: user.username
+        username: user.username,
       },
       JWT_SECRET,
       { expiresIn: '1d' }
@@ -46,11 +44,11 @@ export async function POST(req) {
       token,
       user: {
         username: user.username,
-        role: user.role
-      }
+        role: user.role,
+      },
     });
   } catch (err) {
-    console.error('Login route error:', err);
-    return Response.json({ message: 'Server error', error: err.message }, { status: 500 });
+    console.error('Login error:', err);
+    return Response.json({ message: 'Server error' }, { status: 500 });
   }
 }

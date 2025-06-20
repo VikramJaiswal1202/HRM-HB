@@ -9,7 +9,7 @@ export async function POST(req) {
 
   try {
     const allowedRoles = ['superadmin', 'hr', 'manager', 'user'];
-    if (!allowedRoles.includes(role)) {
+    if (!allowedRoles.includes(role.toLowerCase())) {
       return Response.json({ message: 'Invalid role' }, { status: 400 });
     }
 
@@ -22,13 +22,13 @@ export async function POST(req) {
     const newUser = new User({
       username,
       password: hashedPassword,
-      role,
+      role: role.toLowerCase(),
     });
 
     await newUser.save();
     return Response.json({ message: 'User registered successfully' }, { status: 201 });
   } catch (error) {
-    console.error(error);
+    console.error('Signup error:', error);
     return Response.json({ message: 'Something went wrong' }, { status: 500 });
   }
 }
