@@ -1,258 +1,249 @@
-import React, { useState } from 'react';
-import { User, Lock, UserCheck, AlertCircle, CheckCircle } from 'lucide-react';
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-const AuthUI = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-    role: 'user'
-  });
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: '', type: '' });
+const accent = "#0D1A33";
+const accentPurple = "#7d2ae8";
+const bgCard = "#fff";
+const accentLight = "#4267b2";
 
-  const roles = [
-    { value: 'superadmin', label: 'Super Admin', color: 'text-red-600' },
-    { value: 'hr', label: 'HR', color: 'text-purple-600' },
-    { value: 'manager', label: 'Manager', color: 'text-blue-600' },
-    { value: 'user', label: 'User', color: 'text-green-600' }
-  ];
+export default function SuperLogin() {
+  const router = useRouter();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    // Clear message when user starts typing
-    if (message.text) {
-      setMessage({ text: '', type: '' });
+  useEffect(() => {
+    // Auto-fill if remembered
+    if (typeof window !== "undefined") {
+      const remembered = localStorage.getItem("superadmin-remember");
+      if (remembered) {
+        const creds = JSON.parse(remembered);
+        setUsername(creds.username);
+        setPassword(creds.password);
+        setRemember(true);
+      }
     }
-  };
+  }, []);
 
-  const validateForm = () => {
-    if (!formData.username.trim()) {
-      setMessage({ text: 'Username is required', type: 'error' });
-      return false;
-    }
-    if (!formData.password.trim()) {
-      setMessage({ text: 'Password is required', type: 'error' });
-      return false;
-    }
-    if (formData.password.length < 6) {
-      setMessage({ text: 'Password must be at least 6 characters', type: 'error' });
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = async () => {
-    
-    if (!validateForm()) return;
-
-    setLoading(true);
-    setMessage({ text: '', type: '' });
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+    setLoginSuccess(false);
 
     try {
-      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/signup';
-      const response = await fetch(endpoint, {
-        method: 'POST',
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (response.ok) {
-        setMessage({ text: data.message, type: 'success' });
-        
-        if (isLogin && data.token) {
-          // Store token and user info
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-          
-          // You can redirect or update app state here
-          setTimeout(() => {
-            setMessage({ text: `Welcome back, ${data.user.username}!`, type: 'success' });
-          }, 1000);
-        } else if (!isLogin) {
-          // Switch to login after successful registration
-          setTimeout(() => {
-            setIsLogin(true);
-            setFormData({ username: '', password: '', role: 'user' });
-            setMessage({ text: 'Registration successful! Please login.', type: 'success' });
-          }, 1500);
-        }
-      } else {
-        setMessage({ text: data.message || 'An error occurred', type: 'error' });
+      if (!res.ok) {
+        setLoginError(data.message || "Login failed");
+        return;
       }
-    } catch (error) {
-      setMessage({ text: 'Network error. Please try again.', type: 'error' });
-    } finally {
-      setLoading(false);
+
+      // Only allow superadmin
+      if (data.user.role !== "superadmin") {
+        setLoginError("Access denied: Not a super admin");
+        return;
+      }
+
+      // Save token
+      localStorage.setItem("token", data.token);
+
+      // Save credentials if "remember me" is checked
+      if (remember) {
+        localStorage.setItem(
+          "superadmin-remember",
+          JSON.stringify({ username, password })
+        );
+      } else {
+        localStorage.removeItem("superadmin-remember");
+      }
+
+      setLoginSuccess(true);
+
+      // Redirect after short delay
+      setTimeout(() => {
+        router.push("/Super");
+      }, 1000);
+    } catch (err) {
+      console.error("Login error:", err);
+      setLoginError("Something went wrong. Please try again.");
     }
   };
 
-  const toggleMode = () => {
-    setIsLogin(!isLogin);
-    setFormData({ username: '', password: '', role: 'user' });
-    setMessage({ text: '', type: '' });
+  const cardStyle = {
+    background: bgCard,
+    padding: "40px 32px",
+    borderRadius: "18px",
+    boxShadow: "0 4px 24px rgba(13,26,51,0.08)",
+    width: "100%",
+    maxWidth: "370px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    zIndex: 2,
+    margin: "80px auto",
+  };
+
+  const inputBoxStyle = {
+    width: "100%",
+    padding: "12px",
+    marginBottom: "16px",
+    border: `1px solid ${accentLight}`,
+    borderRadius: "8px",
+    fontSize: "15px",
+    backgroundColor: "#f4f7fb",
+    color: accent,
+    outline: "none",
+    transition: "border 0.2s",
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="mx-auto w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
-            <UserCheck className="w-8 h-8 text-indigo-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </h1>
-          <p className="text-gray-600 mt-2">
-            {isLogin ? 'Sign in to your account' : 'Register for a new account'}
-          </p>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        background: "#f6f9fc",
+        padding: "16px",
+      }}
+    >
+      <form onSubmit={handleLogin} style={cardStyle}>
+        <div
+          style={{
+            width: "70px",
+            height: "70px",
+            background: accent,
+            borderRadius: "50%",
+            marginBottom: "18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "32px",
+            color: "#fff",
+            fontWeight: "bold",
+          }}
+        >
+          🛡️
         </div>
 
-        {/* Message Display */}
-        {message.text && (
-          <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
-            message.type === 'success' 
-              ? 'bg-green-50 text-green-700 border border-green-200' 
-              : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
-            {message.type === 'success' ? (
-              <CheckCircle className="w-5 h-5 flex-shrink-0" />
-            ) : (
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            )}
-            <span className="text-sm">{message.text}</span>
+        <h2
+          style={{
+            marginBottom: "18px",
+            color: accent,
+            fontWeight: 700,
+            fontSize: "1.3rem",
+          }}
+        >
+          Super Admin Login
+        </h2>
+
+        <input
+          type="text"
+          placeholder="Super Admin Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          style={inputBoxStyle}
+          autoComplete="username"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={inputBoxStyle}
+          autoComplete="current-password"
+        />
+
+        <div
+          style={{
+            width: "100%",
+            marginBottom: "12px",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <input
+            type="checkbox"
+            id="remember"
+            checked={remember}
+            onChange={() => setRemember(!remember)}
+            style={{
+              marginRight: 8,
+              accentColor: accent,
+              width: 16,
+              height: 16,
+            }}
+          />
+          <label
+            htmlFor="remember"
+            style={{ color: accent, fontSize: "15px", cursor: "pointer" }}
+          >
+            Remember me
+          </label>
+        </div>
+
+        {loginError && (
+          <div
+            style={{ color: "#e74c3c", marginBottom: "10px", fontSize: 13 }}
+          >
+            {loginError}
           </div>
         )}
 
-        {/* Form */}
-        <div className="space-y-6">
-          {/* Username Field */}
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-              Username
-            </label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                id="username"
-                name="username"
-                value={formData.username}
-                onChange={handleInputChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                placeholder="Enter your username"
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          {/* Password Field */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="password"
-                id="password"
-                name="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                placeholder="Enter your password"
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          {/* Role Selection */}
-          <div>
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-              Role
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-              disabled={loading}
-            >
-              {roles.map((role) => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Submit Button */}
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+        {loginSuccess && (
+          <div
+            style={{ color: "#27ae60", marginBottom: "10px", fontSize: 13 }}
           >
-            {loading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Processing...
-              </>
-            ) : (
-              isLogin ? 'Sign In' : 'Create Account'
-            )}
-          </button>
-        </div>
-
-        {/* Toggle Mode */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-600">
-            {isLogin ? "Don't have an account?" : "Already have an account?"}
-            <button
-              type="button"
-              onClick={toggleMode}
-              className="ml-2 text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
-              disabled={loading}
-            >
-              {isLogin ? 'Sign up' : 'Sign in'}
-            </button>
-          </p>
-        </div>
-
-        {/* Role Descriptions */}
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Role Descriptions:</h3>
-          <div className="space-y-1 text-xs text-gray-600">
-            <div className="flex justify-between">
-              <span className="text-red-600 font-medium">Super Admin:</span>
-              <span>Full system access</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-purple-600 font-medium">HR:</span>
-              <span>Human resources management</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-blue-600 font-medium">Manager:</span>
-              <span>Team and project oversight</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-green-600 font-medium">User:</span>
-              <span>Standard user access</span>
-            </div>
+            Login successful!
           </div>
+        )}
+
+        <button
+          type="submit"
+          style={{
+            width: "100%",
+            padding: "12px",
+            background: accent,
+            color: "#fff",
+            border: "none",
+            borderRadius: "8px",
+            fontWeight: "bold",
+            fontSize: "1rem",
+            cursor: "pointer",
+            marginBottom: "10px",
+            marginTop: "5px",
+            letterSpacing: "0.5px",
+            transition: "background 0.2s",
+          }}
+        >
+          Sign In
+        </button>
+
+        <div style={{ marginTop: "10px", fontSize: "14px" }}>
+          <span
+            onClick={() => router.push("/login")}
+            style={{
+              color: accentPurple,
+              cursor: "pointer",
+              fontWeight: 500,
+              textDecoration: "underline",
+            }}
+          >
+            Back to User Login
+          </span>
         </div>
-      </div>
+      </form>
     </div>
   );
-};
-
-export default AuthUI;
+}

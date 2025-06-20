@@ -13,7 +13,6 @@ const AuthUI = () => {
   const [message, setMessage] = useState({ text: '', type: '' });
 
   const roles = [
-    { value: 'superadmin', label: 'Super Admin', color: 'text-red-600' },
     { value: 'hr', label: 'HR', color: 'text-purple-600' },
     { value: 'manager', label: 'Manager', color: 'text-blue-600' },
     { value: 'user', label: 'User', color: 'text-green-600' }
@@ -143,7 +142,7 @@ const AuthUI = () => {
               Username
             </label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-black" />
               <input
                 type="text"
                 id="username"
@@ -159,11 +158,11 @@ const AuthUI = () => {
 
           {/* Password Field */}
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-black mb-2">
               Password
             </label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-black" />
               <input
                 type="password"
                 id="password"
