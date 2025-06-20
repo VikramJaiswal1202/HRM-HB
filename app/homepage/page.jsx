@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Homepage() {
@@ -12,6 +12,7 @@ export default function Homepage() {
     { label: "Attendance and timing", icon: "🗓️", route: "/attendance" },
     { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
     { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
+    { label: "view Reporting", icon: "⏱️", route: "/viewreporting" },
   ];
 
   const [employees, setEmployees] = useState([]);
@@ -21,48 +22,90 @@ export default function Homepage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeDetails, setEmployeeDetails] = useState(null);
+  const [showPresentList, setShowPresentList] = useState(false);
+  const [showAbsentList, setShowAbsentList] = useState(false);
+  const [weeklyAttendance, setWeeklyAttendance] = useState([]);
+  const [reportStats, setReportStats] = useState({ submitted: 0, pending: 0 });
 
-  // Fetch employees and today's attendance from backend
   useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = () => {
     setLoading(true);
     fetch("/api/employees")
       .then((res) => res.json())
       .then((data) => {
         setEmployees(data.employees || []);
         setLoading(false);
+        fetchReportStats(data.employees || []);
       })
       .catch(() => setLoading(false));
 
-    // Fetch only today's attendance for all shifts from backend
     const today = new Date().toISOString().slice(0, 10);
-    fetch(`/api/attendance?date=${today}`)
+    fetch(`/api/attendance?date=${today}&shift=Morning`)
       .then((res) => res.json())
       .then((data) => {
         setAttendance(data.data || []);
       });
-  }, []);
 
-  // Attendance logic (connects to backend)
-  const today = new Date().toISOString().slice(0, 10);
-  const presentIds = attendance.filter((a) => a.status === "Present").map((a) => a.employeeId);
-  const absentIds = attendance.filter((a) => a.status === "Absent").map((a) => a.employeeId);
+    const todayDate = new Date();
+    const weekDates = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(todayDate);
+      d.setDate(todayDate.getDate() - i);
+      weekDates.push(d.toISOString().slice(0, 10));
+    }
+    Promise.all(
+      weekDates.map(date =>
+        fetch(`/api/attendance?date=${date}&shift=Morning`)
+          .then(res => res.json())
+          .then(data => {
+            const present = (data.data || []).filter(a => a.status === "Present").length;
+            return {
+              date,
+              present,
+              absent: Math.max(0, (employees.length || 0) - present)
+            };
+          })
+      )
+    ).then(setWeeklyAttendance);
+  };
 
-  const presentEmployees = employees.filter((emp) => presentIds.includes(emp.employeeId));
-  const absentEmployees = employees.filter((emp) => absentIds.includes(emp.employeeId));
+  const fetchReportStats = async (emps) => {
+    const today = new Date().toISOString().split('T')[0];
+    let submitted = 0;
+    for (const emp of emps) {
+      const res = await fetch(`/api/reports?employeeId=${emp.employeeId}`);
+      const data = await res.json();
+      if (Array.isArray(data) && data.some(rep => rep.date && new Date(rep.date).toISOString().split('T')[0] === today)) {
+        submitted++;
+      }
+    }
+    setReportStats({ submitted, pending: emps.length - submitted });
+  };
 
+  const presentIds = attendance
+    .filter((a) => a.status === "Present")
+    .map((a) => a.employeeId);
+
+  const presentEmployees = employees.filter((emp) =>
+    presentIds.includes(emp.employeeId)
+  );
+  const absentEmployees = employees.filter(
+    (emp) => !presentIds.includes(emp.employeeId)
+  );
   const presentCount = presentEmployees.length;
   const absentCount = absentEmployees.length;
 
   const employeesToShow = showAllEmployees ? employees : employees.slice(0, 5);
 
-  // Filter employees by search term
   const filteredEmployees = employeesToShow.filter(emp =>
     emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     emp.employeeId?.toString().includes(searchTerm) ||
     emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Fetch employee details when a name is clicked
   const handleEmployeeClick = async (emp) => {
     setSelectedEmployee(emp);
     try {
@@ -74,15 +117,28 @@ export default function Homepage() {
     }
   };
 
+  const days = ["M", "T", "W", "T", "F", "S", "S"];
+  const presentGraphData = useMemo(() => {
+    return weeklyAttendance.map((entry, idx) => ({
+      day: days[idx],
+      value: entry.present
+    }));
+  }, [weeklyAttendance]);
+  const absentGraphData = useMemo(() => {
+    return weeklyAttendance.map((entry, idx) => ({
+      day: days[idx],
+      value: entry.absent
+    }));
+  }, [weeklyAttendance]);
+
   return (
     <div className="min-h-screen flex bg-[#f6f9fc]">
-      {/* Sidebar - sticky and logout floatable */}
       <aside className="sticky top-0 h-screen w-20 bg-[#0D1A33] text-white flex flex-col items-center py-6 justify-between z-40">
         <div className="w-full">
           <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow mx-auto">
             R
           </div>
-          <nav className="flex flex-col gap-8 w-full items-center">
+          <nav className="flex flex-col gap-3 w-full items-center">
             {sidebarItems.map((item) => (
               <button
                 key={item.label}
@@ -95,7 +151,6 @@ export default function Homepage() {
             ))}
           </nav>
         </div>
-        {/* Floatable logout button */}
         <div className="w-full flex justify-center">
           <button
             onClick={() => router.push("/login")}
@@ -122,96 +177,151 @@ export default function Homepage() {
         <div className="w-full h-[2px] bg-[#e9eef6]" />
         <main className="flex-1 flex flex-row gap-8 p-8">
           <div className="flex-1 flex flex-col gap-8">
-            {/* Only Present and Absent Boxes */}
+            <h2 className="text-xl font-bold text-[#0D1A33]">📋 Report Submitting Status</h2>
+            <div className="flex gap-6">
+              <div className="bg-green-100 text-green-800 border-l-4 border-green-500 p-4 rounded-xl shadow flex-1">
+                <h4 className="font-semibold text-lg">Submitted</h4>
+                <p className="text-3xl font-bold">{reportStats.submitted}</p>
+              </div>
+              <div className="bg-red-100 text-red-800 border-l-4 border-red-500 p-4 rounded-xl shadow flex-1">
+                <h4 className="font-semibold text-lg">Pending</h4>
+                <p className="text-3xl font-bold">{reportStats.pending}</p>
+              </div>
+            </div>
+
             <div className="flex gap-8 mb-4">
-              <div className="flex-1 bg-green-100 border-l-4 border-green-500 p-6 rounded-xl shadow flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold text-green-700 mb-2">Present</span>
-                <span className="text-4xl font-extrabold text-green-700">{presentCount}</span>
-              </div>
-              <div className="flex-1 bg-red-100 border-l-4 border-red-500 p-6 rounded-xl shadow flex flex-col items-center justify-center">
-                <span className="text-2xl font-bold text-red-700 mb-2">Absent</span>
-                <span className="text-4xl font-extrabold text-red-700">{absentCount}</span>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow p-6">
-              <h3 className="text-lg font-bold text-[#0D1A33] mb-4">Today's Attendance</h3>
-              <div className="flex flex-col md:flex-row gap-8">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-green-700 mb-2 flex items-center gap-1">
-                    <svg width="18" height="18" fill="none"><path d="M3 9l4 4L13 5" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    Present
-                  </h4>
-                  {presentEmployees.length === 0 ? (
-                    <div className="text-gray-400">No one present today.</div>
-                  ) : (
-                    <ul className="space-y-1 mb-6">
-                      {presentEmployees.map((emp) => (
-                        <li key={emp.employeeId} className="text-[#0D1A33]">
-                          {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+              <div
+                className="flex-1 bg-green-100 border-l-4 border-green-500 p-6 rounded-xl shadow flex flex-row items-center justify-between cursor-pointer"
+                onClick={() => {
+                  setShowPresentList(!showPresentList);
+                  setShowAbsentList(false);
+                }}
+              >
+                <div className="flex flex-col items-center justify-center min-w-[90px]">
+                  <span className="text-2xl font-bold text-green-700 mb-2">Present</span>
+                  <span className="text-4xl font-extrabold text-green-700">{presentCount}</span>
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-red-600 mb-2 flex items-center gap-1">
-                    <svg width="18" height="18" fill="none"><path d="M13 7l-4 4-4-4" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                    Absent
-                  </h4>
-                  {absentEmployees.length === 0 ? (
-                    <div className="text-gray-400">No one absent today.</div>
-                  ) : (
-                    <ul className="space-y-1 mb-6">
-                      {absentEmployees.map((emp) => (
-                        <li key={emp.employeeId} className="text-[#0D1A33]">
-                          {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className="rounded-xl shadow p-6 bg-transparent" style={{ marginTop: "-16px" }}>
-              <h3 className="text-lg font-bold text-[#0D1A33] mb-6">Attendance Graph for Today</h3>
-              <div className="flex flex-col md:flex-row gap-8">
-                <div className="flex-1 flex flex-col items-center">
-                  <svg width="600" height="100" style={{ background: "transparent" }}>
-                    <defs>
-                      <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#4ade80" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#4ade80" stopOpacity="0" />
-                      </linearGradient>
-                      <linearGradient id="absentGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f87171" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#f87171" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    {/* Present */}
-                    <rect x="80" y={100 - presentCount * 5} width="120" height={presentCount * 5} fill="url(#presentGradient)" />
-                    {/* Absent */}
-                    <rect x="260" y={100 - absentCount * 5} width="120" height={absentCount * 5} fill="url(#absentGradient)" />
-                    {/* Labels */}
-                    <text x="140" y="95" textAnchor="middle" fill="#4ade80" fontSize="18" fontWeight="bold">{presentCount}</text>
-                    <text x="320" y="95" textAnchor="middle" fill="#f87171" fontSize="18" fontWeight="bold">{absentCount}</text>
+                <div className="flex-1 flex items-center justify-end">
+                  <svg width="220" height="80" style={{ background: "transparent" }}>
+                    <polyline
+                      fill="none"
+                      stroke="#22c55e"
+                      strokeWidth="4"
+                      points={presentGraphData
+                        .map((d, i) => `${30 + i * 30},${70 - (d.value * 1.5)}`)
+                        .join(" ")}
+                    />
+                    {presentGraphData.map((d, i) => (
+                      <circle
+                        key={d.day + i}
+                        cx={30 + i * 30}
+                        cy={70 - (d.value * 1.5)}
+                        r="5"
+                        fill="#22c55e"
+                        stroke="#fff"
+                        strokeWidth="2"
+                      />
+                    ))}
+                    {presentGraphData.map((d, i) => (
+                      <text
+                        key={d.day + "label" + i}
+                        x={30 + i * 30}
+                        y={78}
+                        textAnchor="middle"
+                        fill="#64748b"
+                        fontSize="12"
+                        fontWeight="bold"
+                      >
+                        {d.day}
+                      </text>
+                    ))}
                   </svg>
-                  <div className="flex gap-8 mt-4">
-                    <div className="flex items-center gap-2">
-                      <span className="inline-block w-4 h-4 rounded-full" style={{ background: "#4ade80" }}></span>
-                      <span className="text-green-700 font-semibold">Present</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="inline-block w-4 h-4 rounded-full" style={{ background: "#f87171" }}></span>
-                      <span className="text-red-500 font-semibold">Absent</span>
-                    </div>
-                  </div>
+                </div>
+              </div>
+              <div
+                className="flex-1 bg-red-100 border-l-4 border-red-500 p-6 rounded-xl shadow flex flex-row items-center justify-between cursor-pointer"
+                onClick={() => {
+                  setShowAbsentList(!showAbsentList);
+                  setShowPresentList(false);
+                }}
+              >
+                <div className="flex flex-col items-center justify-center min-w-[90px]">
+                  <span className="text-2xl font-bold text-red-700 mb-2">Absent</span>
+                  <span className="text-4xl font-extrabold text-red-700">{absentCount}</span>
+                </div>
+                <div className="flex-1 flex items-center justify-end">
+                  <svg width="220" height="80" style={{ background: "transparent" }}>
+                    <polyline
+                      fill="none"
+                      stroke="#ef4444"
+                      strokeWidth="4"
+                      points={absentGraphData
+                        .map((d, i) => `${30 + i * 30},${70 - (d.value * 1.5)}`)
+                        .join(" ")}
+                    />
+                    {absentGraphData.map((d, i) => (
+                      <circle
+                        key={d.day + i}
+                        cx={30 + i * 30}
+                        cy={70 - (d.value * 1.5)}
+                        r="5"
+                        fill="#ef4444"
+                        stroke="#fff"
+                        strokeWidth="2"
+                      />
+                    ))}
+                    {absentGraphData.map((d, i) => (
+                      <text
+                        key={d.day + "label" + i}
+                        x={30 + i * 30}
+                        y={78}
+                        textAnchor="middle"
+                        fill="#64748b"
+                        fontSize="12"
+                        fontWeight="bold"
+                      >
+                        {d.day}
+                      </text>
+                    ))}
+                  </svg>
                 </div>
               </div>
             </div>
+            {showPresentList && (
+              <div className="bg-white rounded-xl shadow p-6">
+                <h3 className="text-lg font-bold text-[#0D1A33] mb-4">Present Employees</h3>
+                {presentEmployees.length === 0 ? (
+                  <div className="text-gray-400">No one present today.</div>
+                ) : (
+                  <ul className="space-y-1 mb-6">
+                    {presentEmployees.map((emp) => (
+                      <li key={emp.employeeId} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            {showAbsentList && (
+              <div className="bg-white rounded-xl shadow p-6">
+                <h3 className="text-lg font-bold text-[#0D1A33] mb-4">Absent Employees</h3>
+                {absentEmployees.length === 0 ? (
+                  <div className="text-gray-400">No one absent today.</div>
+                ) : (
+                  <ul className="space-y-1 mb-6">
+                    {absentEmployees.map((emp) => (
+                      <li key={emp.employeeId} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
           <div className="w-64 min-w-[200px] bg-white rounded-xl shadow p-4 h-fit">
             <h3 className="text-lg font-bold text-[#0D1A33] mb-4">Employees</h3>
-            {/* Search Section */}
             <input
               type="text"
               placeholder="Search by name, ID, or department"
@@ -250,7 +360,6 @@ export default function Homepage() {
               </>
             )}
           </div>
-          {/* Employee Details Modal */}
           {selectedEmployee && employeeDetails && (
             <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
               <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-lg relative">

@@ -9,7 +9,9 @@ export async function POST(req) {
   try {
     if (Array.isArray(body) && body.length > 0) {
       const { date, shift } = body[0];
-      // Remove all attendance records for this date and shift
+      const employeeIds = body.map((entry) => entry.employeeId);
+
+      // Remove only existing records for these employees on this date and shift
       await Attendance.deleteMany({
         date: {
           $gte: new Date(date),
@@ -20,12 +22,16 @@ export async function POST(req) {
           })(),
         },
         shift,
+        employeeId: { $in: employeeIds },
       });
-      // Insert new records (unique per employee/date/shift)
+
+      // Insert new attendance records
       const newAttendances = await Attendance.insertMany(body, { ordered: false });
+
       return Response.json({ success: true, data: newAttendances });
     }
-    // Single record fallback
+
+    // Fallback: save single record
     const newAttendance = new Attendance(body);
     await newAttendance.save();
     return Response.json({ success: true, data: newAttendance });
@@ -60,6 +66,9 @@ export async function GET(req) {
     const records = await Attendance.find(filter);
     return Response.json({ success: true, data: records });
   } catch (error) {
-    return Response.json({ success: false, message: "Failed to fetch attendance records" }, { status: 500 });
+    return Response.json(
+      { success: false, message: "Failed to fetch attendance records", error: error.message },
+      { status: 500 }
+    );
   }
 }

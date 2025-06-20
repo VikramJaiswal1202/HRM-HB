@@ -201,6 +201,24 @@ export default function Login() {
     minHeight: "100vh",
   };
 
+  // Super Admin Login link (added as requested)
+  const superAdminLink = (
+    <div style={{ marginTop: "18px", textAlign: "center" }}>
+      <span
+        onClick={() => router.push("/superLogin")}
+        style={{
+          color: accentPurple,
+          cursor: "pointer",
+          fontWeight: 600,
+          textDecoration: "underline",
+          fontSize: "15px",
+        }}
+      >
+        Login as Super Admin
+      </span>
+    </div>
+  );
+
   // Signup page
   const formContent = showSignup ? (
     <form onSubmit={handleSignup} style={cardStyle}>
@@ -343,6 +361,7 @@ export default function Login() {
           Sign In
         </span>
       </div>
+      {superAdminLink}
     </form>
   ) : (
     <form onSubmit={handleLogin} style={cardStyle}>
@@ -477,6 +496,7 @@ export default function Login() {
           Create account
         </span>
       </div>
+      {superAdminLink}
     </form>
   );
 

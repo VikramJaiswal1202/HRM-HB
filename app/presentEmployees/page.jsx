@@ -15,6 +15,7 @@ export default function PresentEmployeesTable() {
     { label: "Attendance and Timing", icon: "🗓️", route: "/attendance" },
     { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
     { label: "Reporting", icon: "⏱️", route: "/reporting" },
+    { label: "view Reporting", icon: "⏱️", route: "/viewreporting" },
   ];
 
   const [selectedDate, setSelectedDate] = useState('');
@@ -91,7 +92,7 @@ export default function PresentEmployeesTable() {
           <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow">
             R
           </div>
-          <nav className="flex flex-col gap-8 w-full items-center">
+          <nav className="flex flex-col gap-3 w-full items-center">
             {sidebarItems.map((item) => (
               <button
                 key={item.label}

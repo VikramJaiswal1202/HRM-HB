@@ -83,7 +83,7 @@ export default function InternsPage() {
           <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow">
             R
           </div>
-          <nav className="flex flex-col gap-8 w-full items-center">
+          <nav className="flex flex-col gap-3 w-full items-center">
             <button className="flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors" onClick={() => window.location.href = "/homepage"}>
               <span className="text-2xl">🏠</span>
               <span className="text-[11px] font-medium">Homepage</span>
@@ -107,6 +107,10 @@ export default function InternsPage() {
             <button className="flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors" onClick={() => window.location.href = "/reporting"}>
               <span className="text-2xl">⏱️</span>
               <span className="text-[11px] font-medium">Reporting</span>
+            </button>
+            <button className="flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors" onClick={() => window.location.href = "/viewreporting"}>
+              <span className="text-2xl">⏱️</span>
+              <span className="text-[11px] font-medium">View Reporting</span>
             </button>
           </nav>
         </div>
