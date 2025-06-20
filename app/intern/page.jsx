@@ -108,10 +108,7 @@ export default function InternsPage() {
               <span className="text-2xl">⏱️</span>
               <span className="text-[11px] font-medium">Reporting</span>
             </button>
-            <button className="flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors" onClick={() => window.location.href = "/viewreporting"}>
-              <span className="text-2xl">⏱️</span>
-              <span className="text-[11px] font-medium">View Reporting</span>
-            </button>
+            
           </nav>
         </div>
         <button

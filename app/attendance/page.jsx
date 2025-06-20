@@ -14,7 +14,6 @@ export default function AttendancePage() {
     { label: "Attendance and Timing", icon: "🗓️", route: "/attendance" },
     { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
     { label: "Reporting", icon: "⏱️", route: "/reporting" },
-    { label: "view Reporting", icon: "⏱️", route: "/viewreporting" },
   ];
 
   const [employees, setEmployees] = useState([]);

@@ -12,10 +12,9 @@ export default function EmployeesPage() {
     { label: "Homepage", icon: "🏠", route: "/homepage" },
     { label: "Employees", icon: "👥", route: "/employees" },
     { label: "Interns", icon: "👥", route: "/intern" },
-    { label: "Attendance", icon: "🗓", route: "/attendance" },
-    { label: "View Attendance", icon: "🗓", route: "/presentEmployees" },
-    { label: "Reporting", icon: "⏱", route: "/reporting" },
-    { label: "view Reporting", icon: "⏱️", route: "/viewreporting" },
+    { label: "Attendance", icon: "🗓️", route: "/attendance" },
+    { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
+    { label: "Reporting", icon: "⏱️", route: "/reporting" },
   ];
 
   const [employees, setEmployees] = useState([]);

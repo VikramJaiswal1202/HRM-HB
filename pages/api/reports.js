@@ -1,68 +1,73 @@
-import multer from 'multer';
-import path from 'path';
+import { IncomingForm } from 'formidable';
 import fs from 'fs';
-import dbConnect from '../../lib/dbConnect';
-import Report from '../../models/Report';
-
-const uploadsDir = path.join(process.cwd(), '/uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: uploadsDir,
-    filename: (req, file, cb) => {
-      cb(null, `${Date.now()}_${file.originalname}`);
-    }
-  })
-});
-
-// Helper to run multer
-function runMiddleware(req, res, fn) {
-  return new Promise((resolve, reject) => {
-    fn(req, res, (result) => {
-      if (result instanceof Error) return reject(result);
-      return resolve(result);
-    });
-  });
-}
+import path from 'path';
+import connectDB from '@/lib/dbConnect';
+import Report from '@/models/Report';
 
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+  api: { bodyParser: false },
 };
 
 export default async function handler(req, res) {
-  await dbConnect();
+  await connectDB();
 
   if (req.method === 'POST') {
-    await runMiddleware(req, res, upload.single('image'));
-
-    const { employeeId, date, notes } = req.body;
-    const imagePath = req.file ? `/uploads/${req.file.filename}`.trim() : null;
-
-    const report = await Report.create({
-      employeeId,
-      date,
-      notes,
-      imagePath,
-    });
-
-    return res.status(200).json({ success: true, report });
-  }
-
-  if (req.method === 'GET') {
-    const { employeeId } = req.query;
-    if (!employeeId) {
-      return res.status(400).json({ error: 'employeeId is required' });
+    const uploadDir = path.join(process.cwd(), 'public/uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    const reports = await Report.find({ employeeId }).sort({ createdAt: -1 });
-    return res.status(200).json(reports);
+    const form = new IncomingForm({ uploadDir, keepExtensions: true });
+
+    form.on('fileBegin', (name, file) => {
+      const cleanName = file.originalFilename.replace(/[\s\(\)]+/g, '_'); // clean spaces/brackets
+      const fileName = `${Date.now()}_${cleanName}`;
+      file.filepath = path.join(uploadDir, fileName);
+      file.newFilename = fileName; // store for DB
+    });
+
+    form.parse(req, async (err, fields, files) => {
+      if (err) {
+        console.error('Form parse error:', err);
+        return res.status(500).json({ success: false, error: 'Form parse error' });
+      }
+
+      try {
+        const fileObj = files.file;
+        const imagePath = fileObj
+          ? `/uploads/${fileObj[0].newFilename}`
+          : '';
+
+        const report = new Report({
+          employeeId: fields.employeeId[0],
+          date: fields.date[0],
+          notes: fields.notes ? fields.notes[0] : '',
+          imagePath,
+        });
+
+        await report.save();
+
+        return res.status(200).json({ success: true, report });
+      } catch (error) {
+        console.error('Save error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to save report' });
+      }
+    });
   }
 
-  res.setHeader('Allow', ['GET', 'POST']);
-  res.status(405).end(`Method ${req.method} Not Allowed`);
+  else if (req.method === 'GET') {
+    try {
+      const { employeeId } = req.query;
+      const query = employeeId ? { employeeId } : {};
+      const reports = await Report.find(query).sort({ createdAt: -1 });
+      return res.status(200).json({ success: true, reports });
+    } catch (error) {
+      console.error('Fetch error:', error);
+      return res.status(500).json({ success: false, error: 'Failed to fetch reports' });
+    }
+  }
+
+  else {
+    return res.status(405).json({ success: false, message: 'Method Not Allowed' });
+  }
 }

@@ -9,10 +9,9 @@ export default function Homepage() {
     { label: "Homepage", icon: "🏠", route: "/homepage" },
     { label: "Employees", icon: "👥", route: "/employees" },
     { label: "Intern", icon: "👥", route: "/intern" },
-    { label: "Attendance and timing", icon: "🗓️", route: "/attendance" },
-    { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
-    { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
-    { label: "view Reporting", icon: "⏱️", route: "/viewreporting" },
+    { label: "Attendance and timing", icon: "🗓", route: "/attendance" },
+    { label: "View Attendance", icon: "🗓", route: "/presentEmployees" },
+    { label: "Timing Reporting", icon: "⏱", route: "/reporting" },
   ];
 
   const [employees, setEmployees] = useState([]);
@@ -26,6 +25,12 @@ export default function Homepage() {
   const [showAbsentList, setShowAbsentList] = useState(false);
   const [weeklyAttendance, setWeeklyAttendance] = useState([]);
   const [reportStats, setReportStats] = useState({ submitted: 0, pending: 0 });
+
+  // For report status
+  const [submittedEmployees, setSubmittedEmployees] = useState([]);
+  const [pendingEmployees, setPendingEmployees] = useState([]);
+  const [showSubmittedList, setShowSubmittedList] = useState(false);
+  const [showPendingList, setShowPendingList] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -72,17 +77,36 @@ export default function Homepage() {
     ).then(setWeeklyAttendance);
   };
 
+  // Fetch report stats and submitted/pending employees
   const fetchReportStats = async (emps) => {
     const today = new Date().toISOString().split('T')[0];
-    let submitted = 0;
-    for (const emp of emps) {
-      const res = await fetch(`/api/reports?employeeId=${emp.employeeId}`);
-      const data = await res.json();
-      if (Array.isArray(data) && data.some(rep => rep.date && new Date(rep.date).toISOString().split('T')[0] === today)) {
-        submitted++;
-      }
-    }
-    setReportStats({ submitted, pending: emps.length - submitted });
+    let submittedList = [];
+    let pendingList = [];
+    await Promise.all(
+      emps.map(async (emp) => {
+        try {
+          const res = await fetch(`/api/reports?employeeId=${emp.employeeId}`);
+          const data = await res.json();
+          if (
+            Array.isArray(data.reports) &&
+            data.reports.some(
+              (rep) =>
+                rep.date &&
+                new Date(rep.date).toISOString().split('T')[0] === today
+            )
+          ) {
+            submittedList.push(emp);
+          } else {
+            pendingList.push(emp);
+          }
+        } catch {
+          pendingList.push(emp);
+        }
+      })
+    );
+    setReportStats({ submitted: submittedList.length, pending: pendingList.length });
+    setSubmittedEmployees(submittedList);
+    setPendingEmployees(pendingList);
   };
 
   const presentIds = attendance
@@ -179,15 +203,66 @@ export default function Homepage() {
           <div className="flex-1 flex flex-col gap-8">
             <h2 className="text-xl font-bold text-[#0D1A33]">📋 Report Submitting Status</h2>
             <div className="flex gap-6">
-              <div className="bg-green-100 text-green-800 border-l-4 border-green-500 p-4 rounded-xl shadow flex-1">
+              <div
+                className={`bg-green-100 text-green-800 border-l-4 border-green-500 p-4 rounded-xl shadow flex-1 cursor-pointer ${
+                  showSubmittedList ? "ring-2 ring-green-400" : ""
+                }`}
+                onClick={() => {
+                  setShowSubmittedList(!showSubmittedList);
+                  setShowPendingList(false);
+                }}
+              >
                 <h4 className="font-semibold text-lg">Submitted</h4>
                 <p className="text-3xl font-bold">{reportStats.submitted}</p>
               </div>
-              <div className="bg-red-100 text-red-800 border-l-4 border-red-500 p-4 rounded-xl shadow flex-1">
+              <div
+                className={`bg-red-100 text-red-800 border-l-4 border-red-500 p-4 rounded-xl shadow flex-1 cursor-pointer ${
+                  showPendingList ? "ring-2 ring-red-400" : ""
+                }`}
+                onClick={() => {
+                  setShowPendingList(!showPendingList);
+                  setShowSubmittedList(false);
+                }}
+              >
                 <h4 className="font-semibold text-lg">Pending</h4>
                 <p className="text-3xl font-bold">{reportStats.pending}</p>
               </div>
             </div>
+            {showSubmittedList && (
+              <div className="bg-white rounded-xl shadow p-6 mt-4">
+                <h3 className="text-lg font-bold text-[#0D1A33] mb-4">Submitted Employees</h3>
+                {submittedEmployees.length === 0 ? (
+                  <div className="text-gray-400">No one submitted today.</div>
+                ) : (
+                  <ul className="space-y-1 mb-6">
+                    {submittedEmployees.map((emp) => (
+                      <li key={emp.employeeId} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+            {showPendingList && (
+              <div className="bg-white rounded-xl shadow p-6 mt-4">
+                <h3 className="text-lg font-bold text-[#0D1A33] mb-4">Pending Employees</h3>
+                {pendingEmployees.length === 0 ? (
+                  <div className="text-gray-400">No one pending today.</div>
+                ) : (
+                  <ul className="space-y-1 mb-6">
+                    {pendingEmployees.map((emp) => (
+                      <li key={emp.employeeId} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {/* Attendance Heading */}
+            <h2 className="text-xl font-bold text-[#0D1A33] mt-8">🗓 Attendance</h2>
 
             <div className="flex gap-8 mb-4">
               <div

@@ -15,7 +15,6 @@ export default function PresentEmployeesTable() {
     { label: "Attendance and Timing", icon: "🗓️", route: "/attendance" },
     { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
     { label: "Reporting", icon: "⏱️", route: "/reporting" },
-    { label: "view Reporting", icon: "⏱️", route: "/viewreporting" },
   ];
 
   const [selectedDate, setSelectedDate] = useState('');
