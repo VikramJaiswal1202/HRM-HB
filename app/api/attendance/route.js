@@ -8,9 +8,18 @@ export async function POST(req) {
   const body = await req.json();
 
   try {
-    const newAttendance = new Attendance(body);
-    await newAttendance.save();
-    return Response.json({ success: true, data: newAttendance });
+    let savedData;
+
+    if (Array.isArray(body)) {
+      // Handle multiple attendance records
+      savedData = await Attendance.insertMany(body);
+    } else {
+      // Handle single attendance record
+      const newAttendance = new Attendance(body);
+      savedData = await newAttendance.save();
+    }
+
+    return Response.json({ success: true, data: savedData });
   } catch (error) {
     console.error("Error saving attendance:", error);
     return new Response("Failed to save attendance", { status: 500 });
