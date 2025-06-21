@@ -7,21 +7,18 @@ export default function EmployeeReportForm() {
   const router = useRouter();
 
   const sidebarItems = [
-    { label: "Homepage", icon: "🏠", route: "/homepageM" },
-    { label: "Employees", icon: "👥", route: "/employeesM" },
-    { label: "Intern", icon: "👥", route: "/intern" },
-    { label: "Attendance and timing", icon: "🗓️", route: "/attendance" },
-    { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
-    { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
-    { label: "Task Assign", icon: "📝",route: "/taskAssign"},
+    { label: "Homepage", icon: "🏠", route: "/homepageE" },
+    { label: "View Attendance", icon: "📅", route: "/viewattendanceE" },
+    { label: "Task Assign", icon: "📝", route: "/taskassignE" },
+    { label: "Reporting", icon: "📊", route: "/reportingE" },
   ];
 
   const [employees, setEmployees] = useState([]);
   const [formData, setFormData] = useState({
-    employeeId: "",
-    date: new Date().toISOString().split("T")[0],
-    notes: "",
-  });
+  date: new Date().toISOString().split("T")[0],
+  notes: "",
+});
+
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState(null);
@@ -202,119 +199,86 @@ export default function EmployeeReportForm() {
           {/* Report Form */}
           <div className="lg:w-1/2">
             <form
-              onSubmit={handleSubmit}
-              className="bg-white p-6 rounded-xl shadow-lg w-full"
-              encType="multipart/form-data" // Added form encoding
-            >
-              <h2 className="text-2xl font-bold mb-4 text-center text-[#0D1A33]">
-                📋 Employee Reporting Update
-              </h2>
+  onSubmit={handleSubmit}
+  className="bg-white p-6 rounded-xl shadow-lg w-full"
+  encType="multipart/form-data"
+>
+  <h2 className="text-2xl font-bold mb-4 text-center text-[#0D1A33]">
+    📝 Submit Your Report
+  </h2>
 
-              {error && (
-                <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
-                  {error}
-                </div>
-              )}
+  {error && (
+    <div className="bg-red-100 text-red-700 p-2 rounded mb-4 text-sm">
+      {error}
+    </div>
+  )}
 
-              <div className="mb-4">
-                <label className="block mb-1 text-sm font-semibold text-[#0D1A33]">
-                  Choose Employee
-                </label>
-                <select
-                  name="employeeId"
-                  value={formData.employeeId}
-                  onChange={handleChange}
-                  required
-                  className="w-full border border-gray-300 p-2 rounded focus:outline-[#4267b2]"
-                >
-                  <option value="">Select employee</option>
-                  {employees.map((emp) => (
-                    <option key={emp.employeeId} value={emp.employeeId}>
-                      {emp.name} ({emp.employeeId})
-                    </option>
-                  ))}
-                </select>
-              </div>
+  <div className="mb-4">
+    <label className="block mb-1 text-sm font-semibold text-[#0D1A33]">
+      Notes (optional)
+    </label>
+    <textarea
+      name="notes"
+      value={formData.notes}
+      onChange={handleChange}
+      className="w-full border border-gray-300 p-2 rounded"
+      placeholder="Write your update here..."
+      rows={3}
+    />
+  </div>
 
-              <div className="mb-4">
-                <label className="block mb-1 text-sm font-semibold text-[#0D1A33]">
-                  Date
-                </label>
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleChange}
-                  required
-                  className="w-full border border-gray-300 p-2 rounded"
-                />
-              </div>
+  <div className="mb-4">
+    <label className="block mb-1 text-sm font-semibold text-[#0D1A33]">
+      Attach Image / Capture
+    </label>
+    <div className="flex items-center gap-3">
+      <input
+        type="file"
+        name="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="flex-1"
+      />
+      <button
+        type="button"
+        onClick={handleOpenCamera}
+        className="px-3 py-1 border border-[#4267b2] text-[#4267b2] rounded hover:bg-[#f4f7fb]"
+      >
+        📸 Camera
+      </button>
+    </div>
+    {file && (
+      <div className="text-xs text-[#0D1A33] mt-1">
+        Attached: {file.name}
+      </div>
+    )}
+  </div>
 
-              <div className="mb-4">
-                <label className="block mb-1 text-sm font-semibold text-[#0D1A33]">
-                  Notes (optional)
-                </label>
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleChange}
-                  className="w-full border border-gray-300 p-2 rounded"
-                  placeholder="Write your update here..."
-                  rows={3}
-                />
-              </div>
+  <button
+    type="submit"
+    className={`w-full bg-[#4267b2] text-white py-2 rounded hover:bg-[#37599d] transition ${
+      loading ? "opacity-50 cursor-not-allowed" : ""
+    }`}
+    disabled={loading}
+  >
+    {loading ? (
+      <>
+        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        Submitting...
+      </>
+    ) : "Submit"}
+  </button>
 
-              <div className="mb-4">
-                <label className="block mb-1 text-sm font-semibold text-[#0D1A33]">
-                  Attach Image / Capture
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="file"
-                    name="file" // Changed to match the working example
-                    accept="image/*,.pdf,.doc,.docx"
-                    onChange={handleFileChange}
-                    className="flex-1"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleOpenCamera}
-                    className="px-3 py-1 border border-[#4267b2] text-[#4267b2] rounded hover:bg-[#f4f7fb]"
-                  >
-                    📸 Camera
-                  </button>
-                </div>
-                {file && (
-                  <div className="text-xs text-[#0D1A33] mt-1">
-                    Attached: {file.name}
-                  </div>
-                )}
-              </div>
+  {response && (
+    <div className="mt-4 bg-green-100 border border-green-400 p-3 rounded text-sm text-green-700">
+      ✅ Submitted Successfully!
+    </div>
+  )}
+</form>
 
-              <button
-                type="submit"
-                className={`w-full bg-[#4267b2] text-white py-2 rounded hover:bg-[#37599d] transition ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-                disabled={loading}
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Submitting...
-                  </>
-                ) : "Submit"}
-              </button>
-
-              {response && (
-                <div className="mt-4 bg-green-100 border border-green-400 p-3 rounded text-sm text-green-700">
-                  ✅ Submitted Successfully!
-                </div>
-              )}
-            </form>
           </div>
 
           {/* Report History */}

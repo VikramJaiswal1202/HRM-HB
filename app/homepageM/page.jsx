@@ -6,12 +6,13 @@ export default function Homepage() {
   const router = useRouter();
 
   const sidebarItems = [
-    { label: "Homepage", icon: "🏠", route: "/homepage" },
-    { label: "Employees", icon: "👥", route: "/employees" },
+    { label: "Homepage", icon: "🏠", route: "/homepageM" },
+    { label: "Employees", icon: "👥", route: "/employeesM" },
     { label: "Intern", icon: "👥", route: "/intern" },
-    { label: "Attendance and timing", icon: "🗓", route: "/attendance" },
-    { label: "View Attendance", icon: "🗓", route: "/presentEmployees" },
-    { label: "Timing Reporting", icon: "⏱", route: "/reporting" },
+    { label: "Attendance and timing", icon: "🗓️", route: "/attendance" },
+    { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
+    { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
+    { label: "Task Assign", icon: "📝",route: "/taskAssign"},
   ];
 
   const [employees, setEmployees] = useState([]);

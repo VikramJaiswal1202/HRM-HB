@@ -9,13 +9,11 @@ export default function PresentEmployeesTable() {
 
   // Sidebar items (copied from reporting page)
   const sidebarItems = [
-    { label: "Homepage", icon: "🏠", route: "/homepageM" },
-    { label: "Employees", icon: "👥", route: "/employeesM" },
-    { label: "Intern", icon: "👥", route: "/intern" },
-    { label: "Attendance and timing", icon: "🗓️", route: "/attendance" },
-    { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
-    { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
-    { label: "Task Assign", icon: "📝",route: "/taskAssign"},
+    { label: "Homepage", icon: "🏠", route: "/homepageHR" },
+    { label: "Employees", icon: "👥", route: "/employeesHR" },
+    { label: "Interns", icon: "🎓", route: "/interns" },
+    { label: "View Attendance", icon: "🗓️", route: "/viewattendanceHR" },
+    { label: "View Reports", icon: "📊", route: "/reports" },
   ];
 
   const [selectedDate, setSelectedDate] = useState('');

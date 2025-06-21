@@ -8,12 +8,13 @@ export default function AttendancePage() {
   const router = useRouter();
 
   const sidebarItems = [
-    { label: "Homepage", icon: "🏠", route: "/homepage" },
-    { label: "Employees", icon: "👥", route: "/employees" },
-    { label: "Interns", icon: "👥", route: "/intern" },
-    { label: "Attendance and Timing", icon: "🗓️", route: "/attendance" },
+    { label: "Homepage", icon: "🏠", route: "/homepageM" },
+    { label: "Employees", icon: "👥", route: "/employeesM" },
+    { label: "Intern", icon: "👥", route: "/intern" },
+    { label: "Attendance and timing", icon: "🗓️", route: "/attendance" },
     { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
-    { label: "Reporting", icon: "⏱️", route: "/reporting" },
+    { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
+    { label: "Task Assign", icon: "📝",route: "/taskAssign"},
   ];
 
   const [employees, setEmployees] = useState([]);
