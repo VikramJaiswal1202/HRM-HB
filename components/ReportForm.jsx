@@ -4,130 +4,114 @@ import axios from "axios";
 
 export default function ReportForm() {
   const [employees, setEmployees] = useState([]);
-  const [formData, setFormData] = useState({
-    employeeId: "",
-    date: "",
-    notes: "",
-  });
+  const [formData, setFormData] = useState({ employeeId: "", date: "", notes: "" });
   const [file, setFile] = useState(null);
-  const [response, setResponse] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
+  const [reports, setReports] = useState([]);
 
-  // Fetch employee list on mount
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
-        const res = await axios.get("/api/employees");
-        if (res.data.success) {
-          setEmployees(res.data.employees);
-        } else {
-          console.error("Error fetching employees", res.data.error);
-        }
+        const res = await axios.get('/api/employees');
+        if (res.data.success) setEmployees(res.data.employees);
       } catch (err) {
-        console.error("Error fetching employees", err);
+        console.error("Error fetching employees:", err);
       }
     };
     fetchEmployees();
   }, []);
 
-  // Handle input changes
-  const handleChange = (e) => {
+  useEffect(() => {
+    if (formData.employeeId) fetchReports(formData.employeeId);
+  }, [formData.employeeId]);
+
+  const fetchReports = async (empId) => {
+    try {
+      const res = await axios.get(`/api/reports?employeeId=${empId}`);
+      if (res.data.success) setReports(res.data.reports);
+    } catch (err) {
+      console.error('Fetch reports error:', err);
+    }
+  };
+
+  const handleChange = e => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Handle file change
-  const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
-  };
+  const handleFileChange = e => setFile(e.target.files[0]);
 
-  // Submit form
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault();
-
-    if (!formData.employeeId || !formData.date) {
-      alert("Employee and Date are required");
-      return;
-    }
-
     const data = new FormData();
-    data.append("employeeId", formData.employeeId);
-    data.append("date", formData.date);
-    data.append("notes", formData.notes);
-    if (file) data.append("image", file);
+    data.append('employeeId', formData.employeeId);
+    data.append('date', formData.date);
+    data.append('notes', formData.notes);
+    if (file) data.append('file', file);
 
     try {
-      const res = await axios.post("/api/reports", data);
-      setResponse(res.data);
+      const res = await axios.post('/api/reports', data);
+      if (res.data.success) {
+        setSubmitted(true);
+        fetchReports(formData.employeeId);
+        setFile(null);
+        setFormData({ ...formData, notes: "" });
+      }
     } catch (err) {
-      console.error("Error submitting report", err);
-      alert("Error submitting report");
+      console.error('Submit error:', err);
     }
   };
 
   return (
-    <div className="min-h-screen flex justify-center items-center bg-gray-100">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md"
-      >
-        <h2 className="text-2xl font-bold mb-4 text-center">📋 Employee Reporting Update</h2>
-
-        <label className="block mb-1">Choose Employee</label>
-        <select
-          name="employeeId"
-          value={formData.employeeId}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded mb-4"
-        >
-          <option value="">Select employee</option>
-          {employees.map((emp) => (
-            <option key={emp.employeeId} value={emp.employeeId}>
-              {emp.employeeId} - {emp.name}
-            </option>
-          ))}
-        </select>
-
-        <label className="block mb-1">Date</label>
-        <input
-          type="date"
-          name="date"
-          value={formData.date}
-          onChange={handleChange}
-          required
-          className="w-full border p-2 rounded mb-4"
-        />
-
-        <label className="block mb-1">Notes (optional)</label>
-        <textarea
-          name="notes"
-          value={formData.notes}
-          onChange={handleChange}
-          className="w-full border p-2 rounded mb-4"
-          placeholder="Write your update here..."
-        />
-
-        <label className="block mb-1">Attach Image / Document</label>
-        <input
-          type="file"
-          accept="image/*,.pdf,.doc,.docx"
-          onChange={handleFileChange}
-          className="w-full mb-4"
-        />
-
-        <button
-          type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-        >
-          Submit
-        </button>
-
-        {response && (
-          <div className="mt-4 bg-green-100 border border-green-400 p-2 rounded text-sm">
-            ✅ Submitted!
-            <pre className="mt-1">{JSON.stringify(response, null, 2)}</pre>
-          </div>
-        )}
+    <div>
+      <h2>📅 Employee Reporting Update</h2>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>Choose Employee: </label>
+          <select name="employeeId" value={formData.employeeId} onChange={handleChange} required>
+            <option value="">Select</option>
+            {employees.map(emp => (
+              <option key={emp.employeeId} value={emp.employeeId}>
+                {emp.employeeId} - {emp.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label>Date: </label>
+          <input type="date" name="date" value={formData.date} onChange={handleChange} required />
+        </div>
+        <div>
+          <label>Notes: </label>
+          <textarea name="notes" value={formData.notes} onChange={handleChange} />
+        </div>
+        <div>
+          <label>Attach Image / Document: </label>
+          <input type="file" onChange={handleFileChange} />
+        </div>
+        <button type="submit">Submit</button>
       </form>
+
+      {submitted && <p style={{ color: 'green' }}>✅ Submitted!</p>}
+
+      {reports.length > 0 && (
+        <div>
+          <h3>Previous Reports</h3>
+          <ul>
+            {reports.map(r => (
+              <li key={r._id} style={{ marginBottom: '10px' }}>
+                <strong>ID:</strong> {r.employeeId}<br />
+                <strong>Date:</strong> {new Date(r.date).toLocaleDateString()}<br />
+                {r.notes && <><strong>Notes:</strong> {r.notes}<br /></>}
+                {r.imagePath && (
+                  <>
+                    <strong>Uploaded File:</strong> <a href={encodeURI(r.imagePath)} target="_blank" rel="noopener noreferrer">View</a>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
