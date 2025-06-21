@@ -1,54 +1,63 @@
-import dbConnect from '@/lib/dbConnect';
-import User from '@/models/userModel';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import dbConnect from "@/lib/dbConnect";
+import SuperAdmin from "@/models/SuperAdmin";
+import Company from "@/models/Company";
+import User from "@/models/User";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function POST(req) {
   try {
-    if (!JWT_SECRET) {
-      return Response.json({ message: 'Server config error' }, { status: 500 });
-    }
-
     await dbConnect();
+    const { email, password } = await req.json();
 
-    const { username, password, role } = await req.json();
-
-    if (!username || !password || !role) {
-      return Response.json({ message: 'Missing credentials or role' }, { status: 400 });
+    if (!email || !password) {
+      return Response.json({ message: "Email and password required" }, { status: 400 });
     }
 
-    const user = await User.findOne({ username, role: role.toLowerCase() });
+    // Try to find in SuperAdmin
+    let user = await SuperAdmin.findOne({ email });
+    let role = "superadmin";
+
+    // If not SuperAdmin, check Company
     if (!user) {
-      return Response.json({ message: 'Invalid credentials' }, { status: 401 });
+      user = await Company.findOne({ email });
+      role = "company";
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    // If not Company, check User (HR, Manager, etc.)
+    if (!user) {
+      user = await User.findOne({ email });
+      if (user) role = user.role;
+    }
+
+    if (!user) {
+      return Response.json({ message: "Invalid credentials" }, { status: 401 });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return Response.json({ message: 'Invalid credentials' }, { status: 401 });
+      return Response.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
     const token = jwt.sign(
-      {
-        userId: user._id,
-        role: user.role,
-        username: user.username,
-      },
+      { _id: user._id, email: user.email, role },
       JWT_SECRET,
-      { expiresIn: '1d' }
+      { expiresIn: "7d" }
     );
 
-    return Response.json({
-      message: 'Login successful',
-      token,
-      user: {
-        username: user.username,
-        role: user.role,
-      },
+    cookies().set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/",
     });
+
+    return Response.json({ role }, { status: 200 });
   } catch (err) {
-    console.error('Login error:', err);
-    return Response.json({ message: 'Server error' }, { status: 500 });
+    console.error("🔥 Login Error:", err);
+    return Response.json({ message: "Server error" }, { status: 500 });
   }
 }
