@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react"; // Import eye icons
 
 // Color theme variables
 const bgMain = "#f6f9fc";
@@ -15,6 +16,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // State for password visibility
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -81,6 +83,24 @@ export default function Login() {
     backgroundColor: "#f4f7fb",
     color: accent,
     outline: "none",
+  };
+
+  const passwordContainerStyle = {
+    position: "relative",
+    width: "100%",
+  };
+
+  const passwordInputStyle = {
+    ...inputBoxStyle,
+    paddingRight: "40px", // Make space for the eye icon
+  };
+
+  const togglePasswordStyle = {
+    position: "absolute",
+    right: "12px",
+    top: "12px",
+    cursor: "pointer",
+    color: accentLight,
   };
 
   const cardStyle = {
@@ -211,15 +231,23 @@ export default function Login() {
             autoComplete="username"
             required
           />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={inputBoxStyle}
-            autoComplete="current-password"
-            required
-          />
+          <div style={passwordContainerStyle}>
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={passwordInputStyle}
+              autoComplete="current-password"
+              required
+            />
+            <span 
+              style={togglePasswordStyle}
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </span>
+          </div>
           {loginError && (
             <div style={{ color: "#e74c3c", marginBottom: "10px", fontSize: 13 }}>
               {loginError}

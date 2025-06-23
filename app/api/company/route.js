@@ -1,12 +1,13 @@
 import dbConnect from '@/lib/dbConnect';
 import Company from '@/models/Company';
+import User from '@/models/User';   
+import SuperAdmin from '@/models/SuperAdmin';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { cookies } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// ✅ CREATE COMPANY - Only SuperAdmin
 export async function POST(req) {
   try {
     await dbConnect();
@@ -26,9 +27,15 @@ export async function POST(req) {
       return Response.json({ message: 'All fields are required' }, { status: 400 });
     }
 
-    const existing = await Company.findOne({ email });
-    if (existing) {
-      return Response.json({ message: 'Company email already exists' }, { status: 409 });
+    // ✅ Check if email exists in any model
+    const [existingCompany, existingUser, existingSuperAdmin] = await Promise.all([
+      Company.findOne({ email }),
+      User.findOne({ email }),
+      SuperAdmin.findOne({ email })
+    ]);
+
+    if (existingCompany || existingUser || existingSuperAdmin) {
+      return Response.json({ message: 'Email already in use' }, { status: 409 });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);

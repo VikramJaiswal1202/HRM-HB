@@ -1,5 +1,7 @@
 import dbConnect from '@/lib/dbConnect';
 import User from '@/models/User';
+import Company from '@/models/Company';
+import SuperAdmin from '@/models/SuperAdmin';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { cookies } from 'next/headers';
@@ -36,11 +38,20 @@ export async function POST(req) {
       return Response.json({ message: 'Invalid role. Must be hr or manager' }, { status: 400 });
     }
 
-    // Check for duplicate email or username
-    const existingUser = await User.findOne({ $or: [{ email }, { username }] });
-    if (existingUser) {
-      const conflictField = existingUser.email === email ? 'Email' : 'Username';
-      return Response.json({ message: `${conflictField} already in use` }, { status: 409 });
+    // ✅ Global uniqueness check for email
+    const [existingUser, existingCompany, existingSuperAdmin] = await Promise.all([
+      User.findOne({ $or: [{ email }, { username }] }),
+      Company.findOne({ email }),
+      SuperAdmin.findOne({ email })
+    ]);
+
+    if (existingUser || existingCompany || existingSuperAdmin) {
+      if (existingUser?.email === email || existingCompany || existingSuperAdmin) {
+        return Response.json({ message: 'Email already in use' }, { status: 409 });
+      }
+      if (existingUser?.username === username) {
+        return Response.json({ message: 'Username already in use' }, { status: 409 });
+      }
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -62,7 +73,6 @@ export async function POST(req) {
     return Response.json({ message: 'Server error' }, { status: 500 });
   }
 }
-
 // =========================
 // GET: Fetch HRs or Managers
 // =========================
@@ -98,6 +108,9 @@ export async function GET(req) {
   }
 }
 
+// =========================
+// DELETE: Remove Employee/Intern
+// =========================
 export async function DELETE(req) {
   try {
     await dbConnect();
