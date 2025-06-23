@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// POST ➤ Create HR or Manager
+// POST  Create HR or Manager
 export async function POST(req) {
   try {
     await dbConnect();
@@ -51,7 +51,7 @@ export async function POST(req) {
   }
 }
 
-// DELETE ➤ Delete Employee or Intern
+// DELETE  Delete Employee or Intern
 export async function DELETE(req) {
   try {
     await dbConnect();
@@ -98,7 +98,7 @@ export async function DELETE(req) {
   }
 }
 
-
+// GET  Fetch HRs and Managers
 export async function GET() {
   try {
     await dbConnect();
