@@ -25,21 +25,18 @@ export async function POST(req) {
     if (!token) return Response.json({ message: 'Unauthorized: No token' }, { status: 401 });
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Check if user has permission and companyId
     if (decoded.role !== 'hr') {
       return Response.json({ message: 'Access denied: Only HR can add users' }, { status: 403 });
     }
 
-    // HR must have a companyId
     if (!decoded.companyId) {
       console.error('HR user missing companyId in token:', decoded);
       return Response.json({ message: 'Invalid HR token: missing company information' }, { status: 401 });
     }
 
-    const { name, email, password, role, managerId } = await req.json();
+    const { name, email, username, password, role, managerId } = await req.json();
 
-    if (!name || !email || !password || !role) {
+    if (!name || !email || !username || !password || !role) {
       return Response.json({ message: 'All fields are required' }, { status: 400 });
     }
 
@@ -49,7 +46,12 @@ export async function POST(req) {
 
     const existing = await User.findOne({ email });
     if (existing) {
-      return Response.json({ message: 'User already exists' }, { status: 409 });
+      return Response.json({ message: 'Email already in use' }, { status: 409 });
+    }
+
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername) {
+      return Response.json({ message: 'Username already in use' }, { status: 409 });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -57,10 +59,11 @@ export async function POST(req) {
     const user = await User.create({
       name,
       email,
+      username,
       passwordHash,
       role,
-      companyId: decoded.companyId, // HR's companyId from token
-      createdBy: decoded._id,       // HR ID
+      companyId: decoded.companyId,
+      createdBy: decoded._id,
       managerId: managerId || null,
     });
 
@@ -68,12 +71,11 @@ export async function POST(req) {
 
   } catch (err) {
     console.error('🔥 HR Add User Error:', err.message);
-    
-    // More detailed error logging
+
     if (err.name === 'ValidationError') {
       console.error('Validation details:', err.errors);
     }
-    
+
     return Response.json({ message: 'Server error' }, { status: 500 });
   }
 }
