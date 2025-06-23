@@ -17,20 +17,42 @@ export async function POST(req) {
       return Response.json({ message: "Email and password required" }, { status: 400 });
     }
 
+    let user = null;
+    let role = null;
+    let companyId = null;
+
     // Try to find in SuperAdmin
-    let user = await SuperAdmin.findOne({ email });
-    let role = "superadmin";
+    user = await SuperAdmin.findOne({ email });
+    if (user) {
+      role = "superadmin";
+      // SuperAdmin doesn't have companyId
+      companyId = null;
+    }
 
     // If not SuperAdmin, check Company
     if (!user) {
       user = await Company.findOne({ email });
-      role = "company";
+      if (user) {
+        role = "company";
+        // For Company users, the companyId is their own _id
+        companyId = user._id.toString();
+      }
     }
 
-    // If not Company, check User (HR, Manager, etc.)
+    // If not Company, check User (HR, Manager, Employee, Intern)
     if (!user) {
       user = await User.findOne({ email });
-      if (user) role = user.role;
+      if (user) {
+        role = user.role;
+        
+        // Only HR and Manager have companyId, others don't
+        if (role === 'hr' || role === 'manager') {
+          companyId = user.companyId?.toString();
+        } else {
+          // Employee, Intern, etc. don't have companyId
+          companyId = null;
+        }
+      }
     }
 
     if (!user) {
@@ -42,20 +64,36 @@ export async function POST(req) {
       return Response.json({ message: "Invalid credentials" }, { status: 401 });
     }
 
-    const token = jwt.sign(
-      { _id: user._id, email: user.email, role },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    // Create JWT payload
+    const tokenPayload = {
+      _id: user._id,
+      email: user.email,
+      role
+    };
 
-    cookies().set("token", token, {
+    // Add companyId to token if it exists
+    if (companyId) {
+      tokenPayload.companyId = companyId;
+    }
+
+    console.log('Creating JWT with payload:', tokenPayload); // Debug log
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "7d" });
+
+    // ✅ Fixed: Await cookies() before using it
+    const cookieStore = await cookies();
+    cookieStore.set("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: "/",
     });
 
-    return Response.json({ role }, { status: 200 });
+    return Response.json({ 
+      role,
+      companyId: companyId || null // Include companyId in response for debugging
+    }, { status: 200 });
+
   } catch (err) {
     console.error("🔥 Login Error:", err);
     return Response.json({ message: "Server error" }, { status: 500 });

@@ -7,8 +7,9 @@ import { headers } from 'next/headers';
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // Helper: Extract token from cookie
-function getTokenFromHeaders() {
-  const cookie = headers().get('cookie') || '';
+async function getTokenFromHeaders() {
+  const headersList = await headers();
+  const cookie = headersList.get('cookie') || '';
   return cookie
     .split(';')
     .find(c => c.trim().startsWith('token='))
@@ -20,12 +21,20 @@ export async function POST(req) {
   try {
     await dbConnect();
 
-    const token = getTokenFromHeaders();
+    const token = await getTokenFromHeaders();
     if (!token) return Response.json({ message: 'Unauthorized: No token' }, { status: 401 });
 
     const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Check if user has permission and companyId
     if (decoded.role !== 'hr') {
       return Response.json({ message: 'Access denied: Only HR can add users' }, { status: 403 });
+    }
+
+    // HR must have a companyId
+    if (!decoded.companyId) {
+      console.error('HR user missing companyId in token:', decoded);
+      return Response.json({ message: 'Invalid HR token: missing company information' }, { status: 401 });
     }
 
     const { name, email, password, role, managerId } = await req.json();
@@ -50,7 +59,7 @@ export async function POST(req) {
       email,
       passwordHash,
       role,
-      companyId: decoded.companyId, // from token
+      companyId: decoded.companyId, // HR's companyId from token
       createdBy: decoded._id,       // HR ID
       managerId: managerId || null,
     });
@@ -59,6 +68,12 @@ export async function POST(req) {
 
   } catch (err) {
     console.error('🔥 HR Add User Error:', err.message);
+    
+    // More detailed error logging
+    if (err.name === 'ValidationError') {
+      console.error('Validation details:', err.errors);
+    }
+    
     return Response.json({ message: 'Server error' }, { status: 500 });
   }
 }
@@ -68,7 +83,7 @@ export async function DELETE(req) {
   try {
     await dbConnect();
 
-    const token = getTokenFromHeaders();
+    const token = await getTokenFromHeaders();
     if (!token) return Response.json({ message: 'Unauthorized: No token' }, { status: 401 });
 
     const decoded = jwt.verify(token, JWT_SECRET);
@@ -108,7 +123,7 @@ export async function GET() {
   try {
     await dbConnect();
 
-    const token = getTokenFromHeaders();
+    const token = await getTokenFromHeaders();
     if (!token) return Response.json({ message: 'Unauthorized: No token' }, { status: 401 });
 
     const decoded = jwt.verify(token, JWT_SECRET);
