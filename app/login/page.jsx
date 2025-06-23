@@ -11,60 +11,65 @@ const accentPurple = "#7d2ae8";
 
 export default function Login() {
   const router = useRouter();
-
-  // Default users
-  const getInitialUsers = () => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("users");
-      if (stored) return JSON.parse(stored);
-    }
-    return [{ username: "rahul", password: "rahul" }];
-  };
-
-  const [users] = useState(getInitialUsers);
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [loginSuccess, setLoginSuccess] = useState(false);
-  
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (e) => {
-  e.preventDefault();
-  setLoginError("");
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+    setIsLoading(true);
 
-  // Check for Super Admin
-  if (username === "rahul_01" && password === "rahul_01") {
-    setLoginSuccess(true);
-    router.push("/super");
-    return;
-  }
-  if (username === "rohit" && password === "rohit") {
-    setLoginSuccess(true);
-    router.push("/homepageE");
-    return;
-  }
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-  // Check for HR User
-  if (username === "aary" && password === "aary") {
-    setLoginSuccess(true);
-    router.push("/homepageHR");
-    return;
-  }
+      // Check if response is JSON
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(text || 'Invalid server response');
+      }
 
-  // Default users logic
-  const found = users.find(
-    (u) => u.username === username && u.password === password
-  );
+      const data = await response.json();
 
-  if (found) {
-    setLoginSuccess(true);
-    router.push("/homepageM");
-  } else {
-    setLoginError("Invalid username or password");
-  }
-};
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
+      }
 
-
+      // Redirect based on role
+      switch (data.role) {
+        case 'superadmin':
+          router.push('/super');
+          break;
+        case 'company':
+          router.push('/homepageC');
+          break;
+        case 'hr':
+          router.push('/homepageHR');
+          break;
+        case 'manager':
+          router.push('/homepageM');
+          break;
+        case 'employee':
+          router.push('/homepageE');
+          break;
+        default:
+          router.push('/homepage');
+      }
+    } catch (err) {
+      setLoginError(err.message || 'Invalid email or password');
+      console.error('Login error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const inputBoxStyle = {
     width: "100%",
@@ -198,12 +203,13 @@ export default function Login() {
             Sign In
           </h2>
           <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             style={inputBoxStyle}
             autoComplete="username"
+            required
           />
           <input
             type="password"
@@ -212,15 +218,11 @@ export default function Login() {
             onChange={(e) => setPassword(e.target.value)}
             style={inputBoxStyle}
             autoComplete="current-password"
+            required
           />
           {loginError && (
             <div style={{ color: "#e74c3c", marginBottom: "10px", fontSize: 13 }}>
               {loginError}
-            </div>
-          )}
-          {loginSuccess && (
-            <div style={{ color: "#27ae60", marginBottom: "10px", fontSize: 13 }}>
-              Login successful!
             </div>
           )}
           <button
@@ -238,9 +240,11 @@ export default function Login() {
               marginBottom: "10px",
               marginTop: "5px",
               letterSpacing: "0.5px",
+              opacity: isLoading ? 0.7 : 1,
             }}
+            disabled={isLoading}
           >
-            Sign In
+            {isLoading ? "Signing In..." : "Sign In"}
           </button>
         </form>
       </div>

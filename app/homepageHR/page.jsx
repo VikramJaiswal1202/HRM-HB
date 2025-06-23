@@ -8,11 +8,10 @@ export default function Homepage() {
   const sidebarItems = [
     { label: "Homepage", icon: "🏠", route: "/homepageHR" },
     { label: "Employees", icon: "👥", route: "/employeesHR" },
-    { label: "Interns", icon: "🎓", route: "/interns" },
+    { label: "Interns", icon: "🎓", route: "/internsHR" },
     { label: "View Attendance", icon: "🗓️", route: "/viewattendanceHR" },
-    { label: "View Reports", icon: "📊", route: "/reports" },
+    { label: "View Reports", icon: "📊", route: "/reportingHR" },
   ];
-
   const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
