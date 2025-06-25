@@ -24,17 +24,34 @@ export default function EmployeesPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[1]);
+  const [message, setMessage] = useState("");
 
-  // Fetch all employees from backend
-  const fetchEmployees = () => {
+  // Fetch all employees from backend using the same API as HR
+  const fetchEmployees = async () => {
     setLoading(true);
-    fetch("/api/employees")
-      .then((res) => res.json())
-      .then((data) => {
-        setEmployees(data.employees || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    try {
+      const res = await fetch("/api/hr/users", {
+        method: "GET",
+        credentials: 'include',
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        // Filter only employees (not interns or other roles)
+        const employeeList = data.users?.filter(user => user.role === 'employee') || [];
+        setEmployees(employeeList);
+        setMessage("");
+      } else {
+        setMessage(data.message || "Failed to fetch employees");
+        setEmployees([]);
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      setMessage("Error connecting to server");
+      setEmployees([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -116,6 +133,11 @@ export default function EmployeesPage() {
                   Employees
                 </h2>
               </div>
+              {message && (
+                <div className="mb-4 p-3 rounded bg-red-100 text-red-700">
+                  {message}
+                </div>
+              )}
               {loading ? (
                 <div className="text-[#0D1A33] text-center py-8">Loading...</div>
               ) : employees.length === 0 ? (
@@ -125,25 +147,31 @@ export default function EmployeesPage() {
                   <table className="min-w-full border border-[#e9eef6] rounded-lg text-base">
                     <thead>
                       <tr className="bg-[#f4f7fb] text-[#0D1A33]">
-                        <th className="py-3 px-6 border-b">Employee ID</th>
+                        <th className="py-3 px-6 border-b">Username</th>
                         <th className="py-3 px-6 border-b">Name</th>
                         <th className="py-3 px-6 border-b">Email</th>
-                        <th className="py-3 px-6 border-b">Department</th>
-                        <th className="py-3 px-6 border-b">Designation</th>
+                        <th className="py-3 px-6 border-b">Role</th>
+                        <th className="py-3 px-6 border-b">Created Date</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedEmployees.map((emp, idx) => (
                         <tr
-                          key={emp.employeeId || idx}
+                          key={emp._id || idx}
                           className="text-[#0D1A33] text-base hover:bg-[#e9eef6] transition cursor-pointer"
                           onClick={() => handleRowClick(emp)}
                         >
-                          <td className="py-3 px-6 border-b">{emp.employeeId}</td>
+                          <td className="py-3 px-6 border-b">{emp.username}</td>
                           <td className="py-3 px-6 border-b">{emp.name}</td>
                           <td className="py-3 px-6 border-b">{emp.email || <span className="text-gray-400">-</span>}</td>
-                          <td className="py-3 px-6 border-b">{emp.department || <span className="text-gray-400">-</span>}</td>
-                          <td className="py-3 px-6 border-b">{emp.designation || <span className="text-gray-400">-</span>}</td>
+                          <td className="py-3 px-6 border-b">
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+                              {emp.role}
+                            </span>
+                          </td>
+                          <td className="py-3 px-6 border-b">
+                            {emp.createdAt ? new Date(emp.createdAt).toLocaleDateString() : "-"}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -165,7 +193,7 @@ export default function EmployeesPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        className="px-3 py-1 rounded bg-[#e9eef6] text-[#0D1A33] font-bold"
+                        className="px-3 py-1 rounded bg-[#e9eef6] text-[#0D1A33] font-bold disabled:opacity-50"
                         onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                         disabled={currentPage === 1}
                       >
@@ -175,7 +203,7 @@ export default function EmployeesPage() {
                         Page {currentPage} of {totalPages}
                       </span>
                       <button
-                        className="px-3 py-1 rounded bg-[#e9eef6] text-[#0D1A33] font-bold"
+                        className="px-3 py-1 rounded bg-[#e9eef6] text-[#0D1A33] font-bold disabled:opacity-50"
                         onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
                       >
@@ -202,29 +230,50 @@ export default function EmployeesPage() {
               <h3 className="text-xl font-bold mb-4 text-[#0D1A33]">
                 Employee Details: {selectedEmployee.name}
               </h3>
-              {/* Show existing details only */}
-              <div className="mb-4 bg-[#e9eef6] rounded-lg p-4">
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Name:</span> {selectedEmployee.name}</div>
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Employee ID:</span> {selectedEmployee.employeeId}</div>
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Email:</span> {selectedEmployee.email || <span className="text-gray-400">-</span>}</div>
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Department:</span> {selectedEmployee.department || <span className="text-gray-400">-</span>}</div>
-                <div className="mb-2 text-[#0D1A33]"><span className="font-semibold">Designation:</span> {selectedEmployee.designation || <span className="text-gray-400">-</span>}</div>
-                {selectedEmployee.resumeUrl && (
-                  <div className="mb-2 text-[#0D1A33]">
-                    <span className="font-semibold">Resume:</span>{" "}
-                    <a href={selectedEmployee.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+              
+              <div className="bg-gradient-to-r from-[#f4f7fb] to-[#e9eef6] rounded-lg p-6 shadow-sm">
+                <h4 className="font-semibold text-[#4267b2] text-lg mb-4 border-b pb-2 border-[#e9eef6]">
+                  Employee Information
+                </h4>
+                <div className="mt-2 grid grid-cols-1 gap-4">
+                  <div className="bg-white p-3 rounded-lg shadow-xs">
+                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Name</p>
+                    <p className="font-medium text-[#0D1A33] mt-1">{selectedEmployee.name}</p>
                   </div>
-                )}
-                {selectedEmployee.documentsUrl && (
-                  <div className="mb-2 text-[#0D1A33]">
-                    <span className="font-semibold">Documents:</span>{" "}
-                    <a href={selectedEmployee.documentsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+                  <div className="bg-white p-3 rounded-lg shadow-xs">
+                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Username</p>
+                    <p className="font-medium text-[#0D1A33] mt-1">{selectedEmployee.username || "-"}</p>
                   </div>
-                )}
+                  <div className="bg-white p-3 rounded-lg shadow-xs">
+                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Email</p>
+                    <p className="font-medium text-[#0D1A33] mt-1">{selectedEmployee.email || "-"}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg shadow-xs">
+                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Role</p>
+                    <p className="font-medium text-[#0D1A33] mt-1">
+                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+                        {selectedEmployee.role}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg shadow-xs">
+                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Created Date</p>
+                    <p className="font-medium text-[#0D1A33] mt-1">
+                      {selectedEmployee.createdAt ? new Date(selectedEmployee.createdAt).toLocaleDateString() : "-"}
+                    </p>
+                  </div>
+                  {selectedEmployee.managerId && (
+                    <div className="bg-white p-3 rounded-lg shadow-xs">
+                      <p className="text-xs text-[#6b7280] uppercase tracking-wider">Manager ID</p>
+                      <p className="font-medium text-[#0D1A33] mt-1">{selectedEmployee.managerId}</p>
+                    </div>
+                  )}
+                </div>
               </div>
+              
               <button
                 onClick={() => setShowDetails(false)}
-                className="mt-2 bg-[#4267b2] hover:bg-[#314d80] text-white font-bold py-2 rounded-lg transition-colors w-full"
+                className="mt-4 bg-[#4267b2] hover:bg-[#314d80] text-white font-bold py-2 rounded-lg transition-colors w-full"
               >
                 Close
               </button>

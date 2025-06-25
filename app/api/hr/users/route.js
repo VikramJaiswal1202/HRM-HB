@@ -138,8 +138,8 @@ import dbConnect from '@/lib/dbConnect';
         if (!token) return Response.json({ message: 'Unauthorized: No token' }, { status: 401 });
 
         const decoded = jwt.verify(token, JWT_SECRET);
-        if (decoded.role !== 'hr') {
-          return Response.json({ message: 'Access denied: Only HR can view users' }, { status: 403 });
+        if (decoded.role === 'employee' || decoded.role === 'intern') {
+          return Response.json({ message: 'Access denied: ' }, { status: 403 });
         }
 
         const users = await User.find({
