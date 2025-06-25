@@ -1,9 +1,9 @@
-// pages/api/employee/tasks.js
 import dbConnect from "@/lib/dbConnect";
 import Task from "@/models/Task";
 
 export default async function handler(req, res) {
   await dbConnect();
+
   if (req.method !== "GET") {
     return res.status(405).send({ error: "Method Not Allowed" });
   }
@@ -15,10 +15,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const tasks = await Task.find({ employeeId }).sort({ createdAt: -1 });
+    const tasks = await Task.find({ assignedTo: employeeId }).sort({ createdAt: -1 });
     res.json({ success: true, tasks });
   } catch (error) {
     console.error(error);
     res.status(500).send({ error: "Internal Server Error" });
   }
 }
+

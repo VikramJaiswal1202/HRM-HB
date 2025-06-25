@@ -1,8 +1,8 @@
 import dbConnect from "@/lib/dbConnect";
 import Task from "@/models/Task";
 import formidable from "formidable";
-import fs from "fs";
 import path from "path";
+import fs from "fs";
 
 export const config = {
   api: {
@@ -17,23 +17,31 @@ export default async function handler(req, res) {
     return res.status(405).send({ error: "Method Not Allowed" });
   }
 
-  const form = formidable({ multiples: false }); // We expect only one file
+  const form = formidable({ multiples: false, keepExtensions: true });
+  form.uploadDir = path.join(process.cwd(), "public", "uploads");
+
+  if (!fs.existsSync(form.uploadDir)) {
+    fs.mkdirSync(form.uploadDir, { recursive: true });
+  }
+
   form.parse(req, async (err, fields, files) => {
     if (err) {
-      console.error("Form parsing error:", err);
-      return res.status(500).send({ error: "Error parsing form" });
+      console.error("Error parsing form:", err);
+      return res.status(500).send({ error: "Error parsing form data" });
     }
 
-    console.log("\n✅ DEBUG FORM:", {
-      fields,
-      files,
-    }); // <-- DEBUG
-
-    const taskId = fields.taskId?.[0] || fields.taskId;
-    const status = fields.status?.[0] || fields.status;
+    const taskId = fields.taskId?.[0];
+    const status = fields.status?.[0];
+    const uploadedFile = files.file?.[0];
+    let imagePath = null;
 
     if (!taskId || !status) {
       return res.status(400).send({ error: "Missing required fields" });
+    }
+
+    if (status === "completed" && uploadedFile) {
+      const newPath = path.join(form.uploadDir, uploadedFile.newFilename);
+      imagePath = `/uploads/${uploadedFile.newFilename}`;
     }
 
     try {
@@ -42,38 +50,11 @@ export default async function handler(req, res) {
         return res.status(404).send({ error: "Task not found" });
       }
 
-      // If status is 'completed', process the uploaded file
-      if (status === "completed") {
-        if (!files?.file) {
-          return res.status(400).send({ error: "Missing uploaded file" }); 
-        }
-
-        const uploadedFile = Array.isArray(files.file) 
-          ? files.file[0] 
-          : files.file;
-
-        if (!uploadedFile) {
-          return res.status(400).send({ error: "Invalid uploaded file" }); 
-        }
-
-        const filename = uploadedFile.originalFilename || uploadedFile.newFilename;
-
-        if (!filename) {
-          return res.status(400).send({ error: "Invalid uploaded file" }); 
-        }
-
-        // Destination path
-        const finalPath = path.join(process.cwd(), "public", "uploads", filename);
-
-        // Move the uploaded file
-        fs.renameSync(uploadedFile.filepath, finalPath);
-
-        // Save path in the task
-        task.imagePath = `/uploads/${filename}`;
-      }
-
-      // Update status
       task.status = status;
+
+      if (imagePath) {
+        task.imagePath = imagePath;
+      }
 
       await task.save();
 
