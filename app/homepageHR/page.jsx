@@ -12,9 +12,11 @@ export default function Homepage() {
     { label: "View Attendance", icon: "🗓️", route: "/viewattendanceHR" },
     { label: "View Reports", icon: "📊", route: "/reportingHR" },
   ];
+
   const [employees, setEmployees] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAllEmployees, setShowAllEmployees] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [employeeDetails, setEmployeeDetails] = useState(null);
@@ -22,66 +24,108 @@ export default function Homepage() {
   const [showAbsentList, setShowAbsentList] = useState(false);
   const [weeklyAttendance, setWeeklyAttendance] = useState([]);
   const [reportStats, setReportStats] = useState({ submitted: 0, pending: 0 });
+
+  // For report status
   const [submittedEmployees, setSubmittedEmployees] = useState([]);
   const [pendingEmployees, setPendingEmployees] = useState([]);
   const [showSubmittedList, setShowSubmittedList] = useState(false);
   const [showPendingList, setShowPendingList] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [editedEmployee, setEditedEmployee] = useState(null);
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = () => {
+  const fetchData = async () => {
     setLoading(true);
-    fetch("/api/employees")
-      .then((res) => res.json())
-      .then((data) => {
-        setEmployees(data.employees || []);
-        setLoading(false);
-        fetchReportStats(data.employees || []);
-      })
-      .catch(() => setLoading(false));
-
-    const today = new Date().toISOString().slice(0, 10);
-    fetch(`/api/attendance?date=${today}&shift=Morning`)
-      .then((res) => res.json())
-      .then((data) => {
-        setAttendance(data.data || []);
+    
+    try {
+      // Fetch employees from the same endpoint as employees page
+      const employeesRes = await fetch("/api/hr/users", {
+        method: "GET",
+        credentials: 'include',
       });
-
-    const todayDate = new Date();
-    const weekDates = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date(todayDate);
-      d.setDate(todayDate.getDate() - i);
-      weekDates.push(d.toISOString().slice(0, 10));
+      const employeesData = await employeesRes.json();
+      
+      if (employeesRes.ok && employeesData.users) {
+        // Filter only employees (not interns) and transform data structure
+        const employeeList = employeesData.users
+          .filter(user => user.role === 'employee')
+          .map(user => ({
+            ...user,
+            employeeId: user._id, // Use _id as employeeId for consistency
+            name: user.name,
+            email: user.email,
+            department: user.department || 'Not specified',
+            designation: user.designation || 'Not specified'
+          }));
+        
+        setEmployees(employeeList);
+        
+        // Fetch report stats with the updated employee list
+        await fetchReportStats(employeeList);
+      } else {
+        console.error("Failed to fetch employees:", employeesData.message);
+        setEmployees([]);
+      }
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      setEmployees([]);
     }
-    Promise.all(
-      weekDates.map(date =>
-        fetch(`/api/attendance?date=${date}&shift=Morning`)
-          .then(res => res.json())
-          .then(data => {
+
+    // Fetch attendance data
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const attendanceRes = await fetch(`/api/attendance?date=${today}&shift=Morning`);
+      const attendanceData = await attendanceRes.json();
+      setAttendance(attendanceData.data || []);
+    } catch (error) {
+      console.error("Error fetching attendance:", error);
+      setAttendance([]);
+    }
+
+    // Fetch weekly attendance data
+    try {
+      const todayDate = new Date();
+      const weekDates = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(todayDate);
+        d.setDate(todayDate.getDate() - i);
+        weekDates.push(d.toISOString().slice(0, 10));
+      }
+      
+      const weeklyData = await Promise.all(
+        weekDates.map(async date => {
+          try {
+            const res = await fetch(`/api/attendance?date=${date}&shift=Morning`);
+            const data = await res.json();
             const present = (data.data || []).filter(a => a.status === "Present").length;
             return {
               date,
               present,
-              absent: Math.max(0, (employees.length || 0) - present)
+              absent: Math.max(0, employees.length - present)
             };
-          })
-      )
-    ).then(setWeeklyAttendance);
+          } catch {
+            return { date, present: 0, absent: 0 };
+          }
+        })
+      );
+      setWeeklyAttendance(weeklyData);
+    } catch (error) {
+      console.error("Error fetching weekly attendance:", error);
+    }
+
+    setLoading(false);
   };
 
   const fetchReportStats = async (emps) => {
     const today = new Date().toISOString().split('T')[0];
     let submittedList = [];
     let pendingList = [];
+    
     await Promise.all(
       emps.map(async (emp) => {
         try {
-          const res = await fetch(`/api/reports?employeeId=${emp.employeeId}`);
+          const res = await fetch(`/api/reports?employeeId=${emp._id}`);
           const data = await res.json();
           if (
             Array.isArray(data.reports) &&
@@ -100,6 +144,7 @@ export default function Homepage() {
         }
       })
     );
+    
     setReportStats({ submitted: submittedList.length, pending: pendingList.length });
     setSubmittedEmployees(submittedList);
     setPendingEmployees(pendingList);
@@ -110,89 +155,38 @@ export default function Homepage() {
     .map((a) => a.employeeId);
 
   const presentEmployees = employees.filter((emp) =>
-    presentIds.includes(emp.employeeId)
+    presentIds.includes(emp._id) || presentIds.includes(emp.employeeId)
   );
   const absentEmployees = employees.filter(
-    (emp) => !presentIds.includes(emp.employeeId)
+    (emp) => !presentIds.includes(emp._id) && !presentIds.includes(emp.employeeId)
   );
   const presentCount = presentEmployees.length;
   const absentCount = absentEmployees.length;
 
-  const filteredEmployees = employees.filter(emp =>
+  const employeesToShow = showAllEmployees ? employees : employees.slice(0, 5);
+
+  const filteredEmployees = employeesToShow.filter(emp =>
     emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.employeeId?.toString().includes(searchTerm) ||
+    emp._id?.toString().includes(searchTerm) ||
+    emp.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleEmployeeClick = async (emp) => {
     setSelectedEmployee(emp);
     try {
-      const res = await fetch(`/api/employees/${emp._id}`);
-      const data = await res.json();
-      setEmployeeDetails(data.employee || emp);
+      // Try to fetch additional details if needed
+      const res = await fetch(`/api/hr/users/${emp._id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setEmployeeDetails(data.user || emp);
+      } else {
+        setEmployeeDetails(emp);
+      }
     } catch {
       setEmployeeDetails(emp);
     }
-  };
-
-  const handleEditEmployee = (emp) => {
-    setEditMode(true);
-    setEditedEmployee({...emp});
-  };
-
-  const handleDeleteEmployee = async (id) => {
-    if (confirm("Are you sure you want to delete this employee?")) {
-      try {
-        const response = await fetch(`/api/employees/${id}`, {
-          method: 'DELETE'
-        });
-        if (response.ok) {
-          setEmployees(employees.filter(emp => emp._id !== id));
-          alert("Employee deleted successfully");
-        } else {
-          alert("Failed to delete employee");
-        }
-      } catch (error) {
-        console.error("Error deleting employee:", error);
-        alert("Error deleting employee");
-      }
-    }
-  };
-
-  const handleSaveEmployee = async () => {
-    try {
-      const response = await fetch(`/api/employees/${editedEmployee._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(editedEmployee),
-      });
-      
-      if (response.ok) {
-        const updatedEmployee = await response.json();
-        setEmployees(employees.map(emp => 
-          emp._id === updatedEmployee._id ? updatedEmployee : emp
-        ));
-        setEditMode(false);
-        setEditedEmployee(null);
-        setEmployeeDetails(updatedEmployee);
-        alert("Employee updated successfully");
-      } else {
-        alert("Failed to update employee");
-      }
-    } catch (error) {
-      console.error("Error updating employee:", error);
-      alert("Error updating employee");
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditedEmployee(prev => ({
-      ...prev,
-      [name]: value
-    }));
   };
 
   const days = ["M", "T", "W", "T", "F", "S", "S"];
@@ -202,6 +196,7 @@ export default function Homepage() {
       value: entry.present
     }));
   }, [weeklyAttendance]);
+  
   const absentGraphData = useMemo(() => {
     return weeklyAttendance.map((entry, idx) => ({
       day: days[idx],
@@ -290,8 +285,8 @@ export default function Homepage() {
                 ) : (
                   <ul className="space-y-1 mb-6">
                     {submittedEmployees.map((emp) => (
-                      <li key={emp.employeeId} className="text-[#0D1A33]">
-                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      <li key={emp._id} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">({emp.username})</span>
                       </li>
                     ))}
                   </ul>
@@ -306,8 +301,8 @@ export default function Homepage() {
                 ) : (
                   <ul className="space-y-1 mb-6">
                     {pendingEmployees.map((emp) => (
-                      <li key={emp.employeeId} className="text-[#0D1A33]">
-                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      <li key={emp._id} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">({emp.username})</span>
                       </li>
                     ))}
                   </ul>
@@ -423,8 +418,8 @@ export default function Homepage() {
                 ) : (
                   <ul className="space-y-1 mb-6">
                     {presentEmployees.map((emp) => (
-                      <li key={emp.employeeId} className="text-[#0D1A33]">
-                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      <li key={emp._id} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">({emp.username})</span>
                       </li>
                     ))}
                   </ul>
@@ -439,8 +434,8 @@ export default function Homepage() {
                 ) : (
                   <ul className="space-y-1 mb-6">
                     {absentEmployees.map((emp) => (
-                      <li key={emp.employeeId} className="text-[#0D1A33]">
-                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      <li key={emp._id} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">({emp.username})</span>
                       </li>
                     ))}
                   </ul>
@@ -448,11 +443,13 @@ export default function Homepage() {
               </div>
             )}
           </div>
-          <div className="w-80 min-w-[250px] bg-white rounded-xl shadow p-4 h-fit">
-            <h3 className="text-lg font-bold text-[#0D1A33] mb-4">Employees</h3>
+          <div className="w-64 min-w-[200px] bg-white rounded-xl shadow p-4 h-fit">
+            <h3 className="text-lg font-bold text-[#0D1A33] mb-4">
+              Employees ({employees.length})
+            </h3>
             <input
               type="text"
-              placeholder="Search by name, ID, or department"
+              placeholder="Search by name, username, email..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full mb-4 px-3 py-2 rounded-lg border border-[#e9eef6] bg-[#f4f7fb] text-[#0D1A33] focus:outline-none"
@@ -462,55 +459,53 @@ export default function Homepage() {
             ) : employees.length === 0 ? (
               <div className="text-gray-400">No employees found.</div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="border-b border-[#e9eef6]">
-                      <th className="text-left py-2 text-sm font-medium text-[#64748b]">Name</th>
-                      <th className="text-left py-2 text-sm font-medium text-[#64748b]">ID</th>
-                      <th className="text-left py-2 text-sm font-medium text-[#64748b]">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredEmployees.map((emp) => (
-                      <tr key={emp.employeeId} className="border-b border-[#e9eef6] hover:bg-[#f4f7fb]">
-                        <td className="py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="inline-block rounded-full w-7 h-7 flex items-center justify-center font-bold bg-[#4267b2] text-white">
-                              {emp.name?.[0]?.toUpperCase() || "?"}
-                            </span>
-                            <span 
-                              className="font-medium cursor-pointer hover:text-blue-600"
-                              onClick={() => handleEmployeeClick(emp)}
-                            >
-                              {emp.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 text-sm text-[#64748b]">{emp.employeeId}</td>
-                        <td className="py-3">
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => handleEditEmployee(emp)}
-                              className="text-blue-600 hover:text-blue-800 text-sm"
-                            >
-                              Edit
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteEmployee(emp._id)}
-                              className="text-red-600 hover:text-red-800 text-sm"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                <ul className="space-y-2">
+                  {filteredEmployees.map((emp) => (
+                    <li
+                      key={emp._id}
+                      className="flex items-center gap-2 px-2 py-1 rounded transition cursor-pointer hover:bg-[#f4f7fb] text-[#0D1A33]"
+                      onClick={() => handleEmployeeClick(emp)}
+                    >
+                      <span className="inline-block rounded-full w-7 h-7 flex items-center justify-center font-bold bg-[#4267b2] text-white">
+                        {emp.name?.[0]?.toUpperCase() || "?"}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="font-medium text-sm">{emp.name}</span>
+                        <span className="text-xs text-gray-500">{emp.username}</span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {!showAllEmployees && employees.length > 5 && (
+                  <button
+                    className="mt-4 w-full text-[#4267b2] font-semibold hover:underline"
+                    onClick={() => setShowAllEmployees(true)}
+                  >
+                    See more ({employees.length - 5} more)
+                  </button>
+                )}
+                {showAllEmployees && employees.length > 5 && (
+                  <button
+                    className="mt-4 w-full text-[#4267b2] font-semibold hover:underline"
+                    onClick={() => setShowAllEmployees(false)}
+                  >
+                    Show less
+                  </button>
+                )}
+              </>
             )}
+            
+            {/* Quick Action to Add Employee */}
+            <button
+              onClick={() => router.push("/employeesHR")}
+              className="w-full mt-4 bg-[#4267b2] text-white px-3 py-2 rounded-lg hover:bg-[#314d80] transition text-sm font-medium"
+            >
+              Manage Employees
+            </button>
           </div>
+          
+          {/* Employee Details Modal */}
           {selectedEmployee && employeeDetails && (
             <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/30">
               <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-lg relative">
@@ -519,115 +514,44 @@ export default function Homepage() {
                   onClick={() => {
                     setSelectedEmployee(null);
                     setEmployeeDetails(null);
-                    setEditMode(false);
                   }}
                   aria-label="Close"
                 >
                   &times;
                 </button>
                 <h3 className="text-xl font-bold mb-4 text-[#0D1A33]">
-                  {editMode ? "Edit Employee" : "Employee Details"}: {employeeDetails.name}
+                  Employee Details: {employeeDetails.name}
                 </h3>
                 <div className="mb-4 bg-[#e9eef6] rounded-lg p-4 text-[#0D1A33]">
-                  {editMode ? (
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block font-semibold mb-1">Name:</label>
-                        <input
-                          type="text"
-                          name="name"
-                          value={editedEmployee.name || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 rounded border border-gray-300"
-                        />
-                      </div>
-                      <div>
-                        <label className="block font-semibold mb-1">Employee ID:</label>
-                        <input
-                          type="text"
-                          name="employeeId"
-                          value={editedEmployee.employeeId || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 rounded border border-gray-300"
-                        />
-                      </div>
-                      <div>
-                        <label className="block font-semibold mb-1">Email:</label>
-                        <input
-                          type="email"
-                          name="email"
-                          value={editedEmployee.email || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 rounded border border-gray-300"
-                        />
-                      </div>
-                      <div>
-                        <label className="block font-semibold mb-1">Department:</label>
-                        <input
-                          type="text"
-                          name="department"
-                          value={editedEmployee.department || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 rounded border border-gray-300"
-                        />
-                      </div>
-                      <div>
-                        <label className="block font-semibold mb-1">Designation:</label>
-                        <input
-                          type="text"
-                          name="designation"
-                          value={editedEmployee.designation || ""}
-                          onChange={handleInputChange}
-                          className="w-full px-3 py-2 rounded border border-gray-300"
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="mb-2"><span className="font-semibold">Name:</span> {employeeDetails.name}</div>
-                      <div className="mb-2"><span className="font-semibold">Employee ID:</span> {employeeDetails.employeeId}</div>
-                      <div className="mb-2"><span className="font-semibold">Email:</span> {employeeDetails.email || <span className="text-gray-400">-</span>}</div>
-                      <div className="mb-2"><span className="font-semibold">Department:</span> {employeeDetails.department || <span className="text-gray-400">-</span>}</div>
-                      <div className="mb-2"><span className="font-semibold">Designation:</span> {employeeDetails.designation || <span className="text-gray-400">-</span>}</div>
-                      {employeeDetails.resumeUrl && (
-                        <div className="mb-2">
-                          <span className="font-semibold">Resume:</span>{" "}
-                          <a href={employeeDetails.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
-                        </div>
-                      )}
-                      {employeeDetails.documentsUrl && (
-                        <div className="mb-2">
-                          <span className="font-semibold">Documents:</span>{" "}
-                          <a href={employeeDetails.documentsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
-                        </div>
-                      )}
-                    </>
+                  <div className="mb-2"><span className="font-semibold">Name:</span> {employeeDetails.name}</div>
+                  <div className="mb-2"><span className="font-semibold">Username:</span> {employeeDetails.username}</div>
+                  <div className="mb-2"><span className="font-semibold">Email:</span> {employeeDetails.email || <span className="text-gray-400">-</span>}</div>
+                  <div className="mb-2"><span className="font-semibold">Role:</span> 
+                    <span className="ml-2 bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+                      {employeeDetails.role}
+                    </span>
+                  </div>
+                  <div className="mb-2"><span className="font-semibold">Created:</span> {employeeDetails.createdAt ? new Date(employeeDetails.createdAt).toLocaleDateString() : '-'}</div>
+                  {employeeDetails.managerId && (
+                    <div className="mb-2"><span className="font-semibold">Manager ID:</span> {employeeDetails.managerId}</div>
                   )}
                 </div>
-                <div className="flex justify-end gap-3">
-                  {editMode ? (
-                    <>
-                      <button
-                        onClick={() => setEditMode(false)}
-                        className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSaveEmployee}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                      >
-                        Save
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => handleEditEmployee(employeeDetails)}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                    >
-                      Edit
-                    </button>
-                  )}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => router.push("/employeesHR")}
+                    className="flex-1 bg-[#4267b2] hover:bg-[#314d80] text-white font-medium py-2 rounded-lg transition-colors"
+                  >
+                    View All Employees
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedEmployee(null);
+                      setEmployeeDetails(null);
+                    }}
+                    className="flex-1 border border-[#4267b2] text-[#4267b2] font-medium py-2 rounded-lg hover:bg-[#f4f7fb] transition-colors"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>
