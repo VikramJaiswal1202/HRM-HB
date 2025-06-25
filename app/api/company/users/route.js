@@ -87,7 +87,7 @@ export async function GET(req) {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'company') {
+    if (decoded.role !== 'company' && decoded.role !== 'hr') {
       return Response.json({ message: 'Access denied: Only company can view HRs and Managers' }, { status: 403 });
     }
 

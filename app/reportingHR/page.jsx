@@ -10,6 +10,7 @@ export default function AllUploads() {
     { label: "Homepage", icon: "🏠", route: "/homepageHR" },
     { label: "Employees", icon: "👥", route: "/employeesHR" },
     { label: "Interns", icon: "🎓", route: "/internsHR" },
+    {label: "managers", icon: "👔", route: "/MHR" },
     { label: "View Attendance", icon: "🗓️", route: "/viewattendanceHR" },
     { label: "View Reports", icon: "📊", route: "/reportingHR" },
   ];
