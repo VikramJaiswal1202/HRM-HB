@@ -15,6 +15,8 @@ const ManagerManagement = () => {
   const [message, setMessage] = useState({ text: '', type: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [debugInfo, setDebugInfo] = useState({ users: null, managers: null });
+  const [assignedEmployees, setAssignedEmployees] = useState([]);
+  const [selectedManagerForView, setSelectedManagerForView] = useState('');
 
   const sidebarItems = [
     { label: "Homepage", icon: "🏠", route: "/homepageHR" },
@@ -30,12 +32,19 @@ const ManagerManagement = () => {
     fetchData();
   }, []);
 
+  // Fetch employees for selected manager
+  useEffect(() => {
+    if (selectedManagerForView) {
+      fetchAssignedEmployees(selectedManagerForView);
+    }
+  }, [selectedManagerForView]);
+
   const fetchData = async () => {
     setFetchingData(true);
     setMessage({ text: '', type: '' });
     
     try {
-      // Fetch users
+      // Fetch unassigned users
       const usersResponse = await fetch('/api/hr/unassigned-users');
       let userData = null;
       if (usersResponse.ok) {
@@ -48,11 +57,11 @@ const ManagerManagement = () => {
       }
 
       // Fetch managers
-      const managersResponse = await fetch('/api/hr/assign-manager');
+      const managersResponse = await fetch('/api/company/users?role=manager');
       let managerData = null;
       if (managersResponse.ok) {
         managerData = await managersResponse.json();
-        setManagers(managerData.managers || []);
+        setManagers(managerData.users || []);
         setDebugInfo(prev => ({ ...prev, managers: managerData }));
       } else {
         const managerError = await managersResponse.text();
@@ -66,7 +75,7 @@ const ManagerManagement = () => {
         setMessage({ text: 'Failed to fetch users. Check console for details.', type: 'error' });
       } else if (!managersResponse.ok) {
         setMessage({ text: 'Failed to fetch managers. Check console for details.', type: 'error' });
-      } else if ((userData?.users?.length || 0) === 0 && (managerData?.managers?.length || 0) === 0) {
+      } else if ((userData?.users?.length || 0) === 0 && (managerData?.users?.length || 0) === 0) {
         setMessage({ text: 'No unassigned users or managers found.', type: 'info' });
       }
       
@@ -76,6 +85,26 @@ const ManagerManagement = () => {
       setDebugInfo({ users: { error: error.message }, managers: { error: error.message } });
     } finally {
       setFetchingData(false);
+    }
+  };
+
+  const fetchAssignedEmployees = async (managerId) => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/hr/manager-employees?managerId=${managerId}`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAssignedEmployees(data.users || []);
+      } else {
+        setMessage({ text: data.message || 'Error fetching employees', type: 'error' });
+      }
+    } catch (err) {
+      setMessage({ text: err.message, type: 'error' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -138,36 +167,31 @@ const ManagerManagement = () => {
     }
   };
 
-  const handleUnassignUsers = async () => {
-    if (selectedUsers.length === 0) {
-      setMessage({ text: 'Please select at least one user', type: 'error' });
-      return;
-    }
+  const handleUnassign = async (userId) => {
+    if (!confirm("Are you sure you want to unassign this employee?")) return;
 
     setLoading(true);
     try {
-      const response = await fetch('/api/hr/assign-manager', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userIds: selectedUsers,
-          action: 'unassign'
-        }),
+      const res = await fetch("/api/hr/unassign-user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ userId }),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage({ text: `Successfully unassigned ${data.modifiedCount} users`, type: 'success' });
-        setSelectedUsers([]);
-        fetchData(); // Refresh the data
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ text: data.message || 'Error unassigning employee', type: 'error' });
       } else {
-        setMessage({ text: data.message || 'Failed to unassign users', type: 'error' });
+        setMessage({ text: data.message, type: 'success' });
+        // Refresh both assigned employees and unassigned users
+        if (selectedManagerForView) {
+          fetchAssignedEmployees(selectedManagerForView);
+        }
+        fetchData();
       }
-    } catch (error) {
-      setMessage({ text: 'Network error occurred', type: 'error' });
+    } catch (err) {
+      setMessage({ text: `Error: ${err.message}`, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -337,8 +361,10 @@ const ManagerManagement = () => {
                 <div className="mt-2 text-xs">
                   <p><strong>Expected endpoints:</strong></p>
                   <p>• GET /api/hr/unassigned-users</p>
-                  <p>• GET /api/hr/assign-manager</p>
+                  <p>• GET /api/company/users?role=manager</p>
                   <p>• PATCH /api/hr/assign-manager</p>
+                  <p>• GET /api/hr/manager-employees?managerId=MANAGER_ID</p>
+                  <p>• PATCH /api/hr/unassign-user</p>
                 </div>
               </div>
             </div>
@@ -346,7 +372,7 @@ const ManagerManagement = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Users List */}
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-2 space-y-6">
               <div className="bg-white rounded-lg shadow-md">
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex justify-between items-center mb-4">
@@ -422,6 +448,59 @@ const ManagerManagement = () => {
                   )}
                 </div>
               </div>
+
+              {/* Assigned Employees Section */}
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Assigned Employees</h2>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Manager to View Employees</label>
+                  <select
+                    value={selectedManagerForView}
+                    onChange={(e) => setSelectedManagerForView(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">-- Select Manager --</option>
+                    {managers.map((manager) => (
+                      <option key={manager._id} value={manager._id}>
+                        {manager.name} (@{manager.username})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {loading && selectedManagerForView ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+                    <p>Loading assigned employees...</p>
+                  </div>
+                ) : selectedManagerForView && assignedEmployees.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>No employees assigned to this manager</p>
+                  </div>
+                ) : selectedManagerForView ? (
+                  <div className="space-y-3">
+                    {assignedEmployees.map((employee) => (
+                      <div key={employee._id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">{employee.name}</p>
+                          <p className="text-sm text-gray-500">@{employee.username}</p>
+                        </div>
+                        <button
+                          onClick={() => handleUnassign(employee._id)}
+                          className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition flex items-center gap-1"
+                        >
+                          <UserMinus className="w-4 h-4" />
+                          Unassign
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>Select a manager to view their assigned employees</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Assignment Panel */}
@@ -466,19 +545,6 @@ const ManagerManagement = () => {
                       <UserPlus className="w-4 h-4" />
                     )}
                     Assign Manager
-                  </button>
-
-                  <button
-                    onClick={handleUnassignUsers}
-                    disabled={loading || selectedUsers.length === 0}
-                    className="w-full flex items-center justify-center gap-2 bg-gray-600 text-white px-4 py-3 rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {loading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <UserMinus className="w-4 h-4" />
-                    )}
-                    Unassign Selected
                   </button>
                 </div>
               </div>

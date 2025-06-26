@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
@@ -12,7 +12,7 @@ export default function Homepage() {
     { label: "Attendance and timing", icon: "🗓️", route: "/attendance" },
     { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
     { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
-    { label: "Task Assign", icon: "📝",route: "/taskAssign"},
+    { label: "Task Assign", icon: "📝", route: "/taskAssign" },
   ];
 
   const [employees, setEmployees] = useState([]);
@@ -26,6 +26,7 @@ export default function Homepage() {
   const [showAbsentList, setShowAbsentList] = useState(false);
   const [weeklyAttendance, setWeeklyAttendance] = useState([]);
   const [reportStats, setReportStats] = useState({ submitted: 0, pending: 0 });
+  const [message, setMessage] = useState("");
 
   // For report status
   const [submittedEmployees, setSubmittedEmployees] = useState([]);
@@ -33,21 +34,38 @@ export default function Homepage() {
   const [showSubmittedList, setShowSubmittedList] = useState(false);
   const [showPendingList, setShowPendingList] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = () => {
+  // Fetch all employees from backend using the same API as HR
+  const fetchEmployees = async () => {
     setLoading(true);
-    fetch("/api/employees")
-      .then((res) => res.json())
-      .then((data) => {
-        setEmployees(data.employees || []);
-        setLoading(false);
-        fetchReportStats(data.employees || []);
-      })
-      .catch(() => setLoading(false));
+    try {
+      const res = await fetch("/api/hr/users", {
+        method: "GET",
+        credentials: 'include',
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        // Filter only employees (not interns or other roles)
+        const employeeList = data.users?.filter(user => user.role === 'employee') || [];
+        setEmployees(employeeList);
+        setMessage("");
+        fetchReportStats(employeeList);
+      } else {
+        setMessage(data.message || "Failed to fetch employees");
+        setEmployees([]);
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      setMessage("Error connecting to server");
+      setEmployees([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    fetchEmployees();
+    
     const today = new Date().toISOString().slice(0, 10);
     fetch(`/api/attendance?date=${today}&shift=Morning`)
       .then((res) => res.json())
@@ -76,7 +94,7 @@ export default function Homepage() {
           })
       )
     ).then(setWeeklyAttendance);
-  };
+  }, []);
 
   // Fetch report stats and submitted/pending employees
   const fetchReportStats = async (emps) => {
@@ -86,7 +104,7 @@ export default function Homepage() {
     await Promise.all(
       emps.map(async (emp) => {
         try {
-          const res = await fetch(`/api/reports?employeeId=${emp.employeeId}`);
+          const res = await fetch(`/api/reports?employeeId=${emp._id}`);
           const data = await res.json();
           if (
             Array.isArray(data.reports) &&
@@ -115,10 +133,10 @@ export default function Homepage() {
     .map((a) => a.employeeId);
 
   const presentEmployees = employees.filter((emp) =>
-    presentIds.includes(emp.employeeId)
+    presentIds.includes(emp._id)
   );
   const absentEmployees = employees.filter(
-    (emp) => !presentIds.includes(emp.employeeId)
+    (emp) => !presentIds.includes(emp._id)
   );
   const presentCount = presentEmployees.length;
   const absentCount = absentEmployees.length;
@@ -127,16 +145,16 @@ export default function Homepage() {
 
   const filteredEmployees = employeesToShow.filter(emp =>
     emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.employeeId?.toString().includes(searchTerm) ||
-    emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    emp.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleEmployeeClick = async (emp) => {
     setSelectedEmployee(emp);
     try {
-      const res = await fetch(`/api/employees/${emp._id}`);
+      const res = await fetch(`/api/hr/users/${emp._id}`);
       const data = await res.json();
-      setEmployeeDetails(data.employee || emp);
+      setEmployeeDetails(data.user || emp);
     } catch {
       setEmployeeDetails(emp);
     }
@@ -237,8 +255,8 @@ export default function Homepage() {
                 ) : (
                   <ul className="space-y-1 mb-6">
                     {submittedEmployees.map((emp) => (
-                      <li key={emp.employeeId} className="text-[#0D1A33]">
-                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      <li key={emp._id} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">(@{emp.username})</span>
                       </li>
                     ))}
                   </ul>
@@ -253,8 +271,8 @@ export default function Homepage() {
                 ) : (
                   <ul className="space-y-1 mb-6">
                     {pendingEmployees.map((emp) => (
-                      <li key={emp.employeeId} className="text-[#0D1A33]">
-                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      <li key={emp._id} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">(@{emp.username})</span>
                       </li>
                     ))}
                   </ul>
@@ -371,8 +389,8 @@ export default function Homepage() {
                 ) : (
                   <ul className="space-y-1 mb-6">
                     {presentEmployees.map((emp) => (
-                      <li key={emp.employeeId} className="text-[#0D1A33]">
-                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      <li key={emp._id} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">(@{emp.username})</span>
                       </li>
                     ))}
                   </ul>
@@ -387,8 +405,8 @@ export default function Homepage() {
                 ) : (
                   <ul className="space-y-1 mb-6">
                     {absentEmployees.map((emp) => (
-                      <li key={emp.employeeId} className="text-[#0D1A33]">
-                        {emp.name} <span className="text-xs text-gray-400">({emp.employeeId})</span>
+                      <li key={emp._id} className="text-[#0D1A33]">
+                        {emp.name} <span className="text-xs text-gray-400">(@{emp.username})</span>
                       </li>
                     ))}
                   </ul>
@@ -400,11 +418,16 @@ export default function Homepage() {
             <h3 className="text-lg font-bold text-[#0D1A33] mb-4">Employees</h3>
             <input
               type="text"
-              placeholder="Search by name, ID, or department"
+              placeholder="Search by name, username, or email"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className="w-full mb-4 px-3 py-2 rounded-lg border border-[#e9eef6] bg-[#f4f7fb] text-[#0D1A33] focus:outline-none"
             />
+            {message && (
+              <div className="mb-4 p-3 rounded bg-red-100 text-red-700">
+                {message}
+              </div>
+            )}
             {loading ? (
               <div className="text-gray-400">Loading...</div>
             ) : employees.length === 0 ? (
@@ -414,7 +437,7 @@ export default function Homepage() {
                 <ul className="space-y-2">
                   {filteredEmployees.map((emp) => (
                     <li
-                      key={emp.employeeId}
+                      key={emp._id}
                       className="flex items-center gap-2 px-2 py-1 rounded transition cursor-pointer hover:bg-[#f4f7fb] text-[#0D1A33]"
                       onClick={() => handleEmployeeClick(emp)}
                     >
@@ -425,12 +448,12 @@ export default function Homepage() {
                     </li>
                   ))}
                 </ul>
-                {!showAllEmployees && employees.length > 5 && (
+                {employees.length > 5 && (
                   <button
                     className="mt-4 w-full text-[#4267b2] font-semibold hover:underline"
-                    onClick={() => setShowAllEmployees(true)}
+                    onClick={() => setShowAllEmployees(!showAllEmployees)}
                   >
-                    See more
+                    {showAllEmployees ? 'See less' : 'See more'}
                   </button>
                 )}
               </>
@@ -454,20 +477,19 @@ export default function Homepage() {
                 </h3>
                 <div className="mb-4 bg-[#e9eef6] rounded-lg p-4 text-[#0D1A33]">
                   <div className="mb-2"><span className="font-semibold">Name:</span> {employeeDetails.name}</div>
-                  <div className="mb-2"><span className="font-semibold">Employee ID:</span> {employeeDetails.employeeId}</div>
+                  <div className="mb-2"><span className="font-semibold">Username:</span> @{employeeDetails.username}</div>
                   <div className="mb-2"><span className="font-semibold">Email:</span> {employeeDetails.email || <span className="text-gray-400">-</span>}</div>
-                  <div className="mb-2"><span className="font-semibold">Department:</span> {employeeDetails.department || <span className="text-gray-400">-</span>}</div>
-                  <div className="mb-2"><span className="font-semibold">Designation:</span> {employeeDetails.designation || <span className="text-gray-400">-</span>}</div>
-                  {employeeDetails.resumeUrl && (
+                  <div className="mb-2"><span className="font-semibold">Role:</span> 
+                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm ml-2">
+                      {employeeDetails.role}
+                    </span>
+                  </div>
+                  <div className="mb-2"><span className="font-semibold">Created Date:</span> 
+                    {employeeDetails.createdAt ? new Date(employeeDetails.createdAt).toLocaleDateString() : "-"}
+                  </div>
+                  {employeeDetails.managerId && (
                     <div className="mb-2">
-                      <span className="font-semibold">Resume:</span>{" "}
-                      <a href={employeeDetails.resumeUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
-                    </div>
-                  )}
-                  {employeeDetails.documentsUrl && (
-                    <div className="mb-2">
-                      <span className="font-semibold">Documents:</span>{" "}
-                      <a href={employeeDetails.documentsUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+                      <span className="font-semibold">Manager ID:</span> {employeeDetails.managerId}
                     </div>
                   )}
                 </div>

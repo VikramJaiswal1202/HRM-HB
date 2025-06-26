@@ -2,10 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, BarChart, Building } from 'lucide-react';
+import { LogOut, BarChart, Building, Users } from 'lucide-react';
+
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 export default function SuperAdminPage() {
   const [activeSection, setActiveSection] = useState('analytics');
+  const [selectedCompany, setSelectedCompany] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCompany, setNewCompany] = useState({
     name: '',
@@ -16,20 +19,16 @@ export default function SuperAdminPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [fetchingCompanies, setFetchingCompanies] = useState(true);
   const [error, setError] = useState('');
+  const [companyEmployees, setCompanyEmployees] = useState({});
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[1]);
+  const [message, setMessage] = useState("");
   const router = useRouter();
 
-  const analyticsData = {
-    totalTasks: 1200,
-    completedTasks: 1000,
-    pendingTasks: 200,
-    avgSpeed: '2.5h/task',
-    activeUsers: 38,
-    performanceScore: '87%',
-  };
-
   const sidebarItems = [
-    { label: "Analytics", icon: <BarChart size={18} className="mr-2" />, route: "#", section: "analytics" },
-    { label: "Company Details", icon: <Building size={18} className="mr-2" />, route: "#", section: "company" },
+    { label: "Analytics", icon: <BarChart size={18} className="mr-2" />, section: "analytics" },
+    { label: "Company Details", icon: <Building size={18} className="mr-2" />, section: "company" },
   ];
 
   // Fetch companies from backend
@@ -56,14 +55,50 @@ export default function SuperAdminPage() {
     fetchCompanies();
   }, []);
 
-  const handleLogout = () => {
-    router.push('/login');
+  // Fetch employees for a specific company
+  const fetchEmployees = async (companyId) => {
+    setLoadingEmployees(true);
+    try {
+      const res = await fetch(`/api/companies/${companyId}/employees`, {
+        method: "GET",
+        credentials: 'include',
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        setCompanyEmployees(prev => ({
+          ...prev,
+          [companyId]: data.employees || []
+        }));
+        setMessage("");
+      } else {
+        setMessage(data.message || "Failed to fetch employees");
+        setCompanyEmployees(prev => ({
+          ...prev,
+          [companyId]: []
+        }));
+      }
+    } catch (error) {
+      console.error("Fetch error:", error);
+      setMessage("Error connecting to server");
+      setCompanyEmployees(prev => ({
+        ...prev,
+        [companyId]: []
+      }));
+    } finally {
+      setLoadingEmployees(false);
+    }
   };
 
-  const handleCompanyClick = () => {
-    router.push('/homepageC');
+  // Handle company selection
+  const handleCompanyClick = async (company) => {
+    setSelectedCompany(company);
+    if (!companyEmployees[company._id]) {
+      await fetchEmployees(company._id);
+    }
   };
 
+  // Handle adding a new company
   const handleAddCompany = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -101,6 +136,45 @@ export default function SuperAdminPage() {
     }
   };
 
+  // Handle page size change
+  const handlePageSizeChange = (e) => {
+    setPageSize(Number(e.target.value));
+    setCurrentPage(1);
+  };
+
+  // Get paginated employees for current company
+  const getPaginatedEmployees = () => {
+    if (!selectedCompany || !companyEmployees[selectedCompany._id]) return [];
+    const employees = companyEmployees[selectedCompany._id];
+    return employees.slice(
+      (currentPage - 1) * pageSize,
+      currentPage * pageSize
+    );
+  };
+
+  // Get total pages for current company's employees
+  const getTotalPages = () => {
+    if (!selectedCompany || !companyEmployees[selectedCompany._id]) return 0;
+    return Math.ceil(companyEmployees[selectedCompany._id].length / pageSize);
+  };
+
+  // Analytics data calculation
+  const getCompanyAnalytics = (company) => {
+    const employees = companyEmployees[company._id] || [];
+    const completedTasks = employees.reduce((sum, emp) => sum + (emp.completedTasks || 0), 0);
+    const pendingTasks = employees.reduce((sum, emp) => sum + (emp.pendingTasks || 0), 0);
+    
+    return {
+      employees: employees.length,
+      completedTasks,
+      pendingTasks,
+      totalTasks: completedTasks + pendingTasks,
+      completionRate: completedTasks + pendingTasks > 0 
+        ? Math.round((completedTasks / (completedTasks + pendingTasks)) * 100)
+        : 0
+    };
+  };
+
   return (
     <div className="min-h-screen flex bg-[#f6f9fc]">
       {/* Sidebar - sticky and logout floatable */}
@@ -116,7 +190,10 @@ export default function SuperAdminPage() {
                 className={`flex flex-col items-center gap-1 rounded py-2 w-16 transition-colors ${
                   activeSection === item.section ? 'bg-[#4267b2]' : 'hover:bg-[#1a2b4c]'
                 }`}
-                onClick={() => setActiveSection(item.section)}
+                onClick={() => {
+                  setActiveSection(item.section);
+                  setSelectedCompany(null);
+                }}
               >
                 {React.cloneElement(item.icon, { className: "text-2xl" })}
                 <span className="text-[11px] font-medium">{item.label}</span>
@@ -127,7 +204,7 @@ export default function SuperAdminPage() {
         {/* Floatable logout button */}
         <div className="w-full flex justify-center">
           <button
-            onClick={handleLogout}
+            onClick={() => router.push("/login")}
             className="fixed bottom-6 left-6 flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors z-50"
             style={{ color: "#fff", fontSize: "13px" }}
           >
@@ -151,16 +228,145 @@ export default function SuperAdminPage() {
 
         {/* Page Content */}
         <main className="flex-1 p-8">
-          {activeSection === 'analytics' && (
+          {activeSection === 'analytics' && !selectedCompany && (
             <div className="space-y-8">
               <h1 className="text-3xl font-semibold text-[#0D1A33]">Company Analytics</h1>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <Card title="Completed Tasks" value={analyticsData.completedTasks} />
-                <Card title="Pending Tasks" value={analyticsData.pendingTasks} />
-                <Card title="Avg Task Speed" value={analyticsData.avgSpeed} />
-                <Card title="Active Users" value={analyticsData.activeUsers} />
-                <Card title="Performance Score" value={analyticsData.performanceScore} />
-                <Card title="Total Tasks" value={analyticsData.totalTasks} />
+                {companies.map((company) => {
+                  const analytics = getCompanyAnalytics(company);
+                  return (
+                    <div
+                      key={company._id}
+                      className="p-6 bg-white rounded-xl shadow hover:shadow-md transition cursor-pointer border-2 border-transparent hover:border-blue-400"
+                      onClick={() => handleCompanyClick(company)}
+                    >
+                      <h2 className="text-xl font-bold text-gray-900 mb-1">{company.name}</h2>
+                      <p className="text-gray-600">👥 Employees: {analytics.employees}</p>
+                      <p className="text-gray-600">✅ Tasks Done: {analytics.completedTasks}</p>
+                      <p className="text-gray-600">⏳ Pending: {analytics.pendingTasks}</p>
+                      <div className="mt-2">
+                        <span className="text-blue-700 font-semibold">
+                          Completion: {analytics.completionRate}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {activeSection === 'analytics' && selectedCompany && (
+            <div className="space-y-6">
+              <button
+                className="mb-6 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
+                onClick={() => setSelectedCompany(null)}
+              >
+                ← Back to All Companies
+              </button>
+              
+              <h1 className="text-3xl font-semibold text-[#0D1A33] mb-4">
+                {selectedCompany.name} Analytics
+              </h1>
+              
+              <div className="bg-white rounded-xl shadow p-6 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                  <div className="bg-[#f4f7fb] p-4 rounded-lg">
+                    <h3 className="font-semibold text-[#4267b2] mb-2">Company Information</h3>
+                    <p><span className="font-medium">Email:</span> {selectedCompany.email}</p>
+                    <p><span className="font-medium">Employees:</span> {companyEmployees[selectedCompany._id]?.length || 0}</p>
+                  </div>
+                  
+                  <div className="bg-[#f4f7fb] p-4 rounded-lg">
+                    <h3 className="font-semibold text-[#4267b2] mb-2">Performance Summary</h3>
+                    {companyEmployees[selectedCompany._id] ? (
+                      <>
+                        <p><span className="font-medium">Total Tasks:</span> {getCompanyAnalytics(selectedCompany).totalTasks}</p>
+                        <p><span className="font-medium">Completion Rate:</span> {getCompanyAnalytics(selectedCompany).completionRate}%</p>
+                      </>
+                    ) : (
+                      <p>Loading performance data...</p>
+                    )}
+                  </div>
+                </div>
+
+                <h3 className="text-xl font-semibold text-[#0D1A33] mb-4">Employees</h3>
+                
+                {loadingEmployees ? (
+                  <div className="text-center py-8">Loading employees...</div>
+                ) : companyEmployees[selectedCompany._id]?.length === 0 ? (
+                  <div className="text-gray-400 text-center py-4">No employees found.</div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-[#e9eef6] rounded-lg text-base">
+                        <thead>
+                          <tr className="bg-[#f4f7fb] text-[#0D1A33]">
+                            <th className="py-3 px-6 border-b">Name</th>
+                            <th className="py-3 px-6 border-b">Email</th>
+                            <th className="py-3 px-6 border-b">Role</th>
+                            <th className="py-3 px-6 border-b">Completed Tasks</th>
+                            <th className="py-3 px-6 border-b">Pending Tasks</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {getPaginatedEmployees().map((emp) => (
+                            <tr
+                              key={emp._id}
+                              className="text-[#0D1A33] text-base hover:bg-[#e9eef6] transition"
+                            >
+                              <td className="py-3 px-6 border-b">{emp.name}</td>
+                              <td className="py-3 px-6 border-b">{emp.email || <span className="text-gray-400">-</span>}</td>
+                              <td className="py-3 px-6 border-b">
+                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
+                                  {emp.role}
+                                </span>
+                              </td>
+                              <td className="py-3 px-6 border-b">{emp.completedTasks || 0}</td>
+                              <td className="py-3 px-6 border-b">{emp.pendingTasks || 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Pagination */}
+                    <div className="flex flex-wrap justify-between items-center gap-2 mt-6">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[#0D1A33] font-semibold">Rows per page:</span>
+                        <select
+                          value={pageSize}
+                          onChange={handlePageSizeChange}
+                          className="border border-[#4267b2] rounded px-2 py-1 text-[#4267b2] font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-[#4267b2]"
+                          style={{ minWidth: 60 }}
+                        >
+                          {PAGE_SIZE_OPTIONS.map((size) => (
+                            <option key={size} value={size}>{size}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          className="px-3 py-1 rounded bg-[#e9eef6] text-[#0D1A33] font-bold disabled:opacity-50"
+                          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          Prev
+                        </button>
+                        <span className="mx-2 text-[#0D1A33] font-semibold">
+                          Page {currentPage} of {getTotalPages()}
+                        </span>
+                        <button
+                          className="px-3 py-1 rounded bg-[#e9eef6] text-[#0D1A33] font-bold disabled:opacity-50"
+                          onClick={() => setCurrentPage((p) => Math.min(getTotalPages(), p + 1))}
+                          disabled={currentPage === getTotalPages()}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -243,15 +449,15 @@ export default function SuperAdminPage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
-                  {companies.map((company, idx) => (
+                  {companies.map((company) => (
                     <div
-                      key={idx}
+                      key={company._id}
                       className="p-6 bg-white rounded-xl shadow hover:shadow-md transition cursor-pointer"
-                      onClick={handleCompanyClick}
+                      onClick={() => router.push('/homepageC')}
                     >
                       <h2 className="text-xl font-bold text-[#0D1A33] mb-1">{company.name}</h2>
                       <p className="text-[#0D1A33]">📧 {company.email}</p>
-                      <p className="text-[#0D1A33]">👥 Employees: {company.employees || 'N/A'}</p>
+                      <p className="text-[#0D1A33]">👥 Employees: {companyEmployees[company._id]?.length || 'N/A'}</p>
                     </div>
                   ))}
                 </div>
@@ -263,10 +469,3 @@ export default function SuperAdminPage() {
     </div>
   );
 }
-
-const Card = ({ title, value }) => (
-  <div className="p-6 bg-white rounded-xl shadow hover:shadow-md transition text-center">
-    <div className="text-[#0D1A33] text-sm mb-1">{title}</div>
-    <div className="text-2xl font-bold text-[#0D1A33]">{value}</div>
-  </div>
-);

@@ -152,5 +152,5 @@ import dbConnect from '@/lib/dbConnect';
       } catch (err) {
         console.error('🔥 HR Fetch Error:', err.message);
         return Response.json({ message: 'Server error' }, { status: 500 });
-      }
-    }
+      }
+    }

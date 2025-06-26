@@ -14,7 +14,7 @@ export default function AttendancePage() {
     { label: "Attendance and timing", icon: "🗓️", route: "/attendance" },
     { label: "View Attendance", icon: "🗓️", route: "/presentEmployees" },
     { label: "Timing Reporting", icon: "⏱️", route: "/reporting" },
-    { label: "Task Assign", icon: "📝",route: "/taskAssign"},
+    { label: "Task Assign", icon: "📝", route: "/taskAssign"},
   ];
 
   const [employees, setEmployees] = useState([]);
@@ -24,15 +24,24 @@ export default function AttendancePage() {
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     const fetchEmployees = async () => {
+      setLoading(true);
       try {
-        const res = await fetch('/api/employees');
-        if (!res.ok) throw new Error('Network error');
+        const res = await fetch('/api/hr/users', {
+          method: "GET",
+          credentials: 'include',
+        });
+        if (!res.ok) throw new Error('Failed to fetch employees');
         const data = await res.json();
-        setEmployees(data.employees || []);
+        // Filter only employees (not interns or other roles)
+        const employeeList = data.users?.filter(user => user.role === 'employee') || [];
+        setEmployees(employeeList);
+        setMessage("");
       } catch (err) {
+        setMessage(err.message || "Error connecting to server");
         setEmployees([]);
         console.error('Failed to load employees:', err);
       } finally {
@@ -61,12 +70,12 @@ export default function AttendancePage() {
   }, [selectedDate, selectedShift]);
 
   const presentIds = attendanceRecords.map((r) => r.employeeId);
-  const unmarkedEmployees = employees.filter((e) => !presentIds.includes(e.employeeId));
+  const unmarkedEmployees = employees.filter((e) => !presentIds.includes(e._id));
 
   const filteredEmployees = unmarkedEmployees.filter(emp =>
     emp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.employeeId?.toString().includes(searchTerm) ||
-    emp.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    emp.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    emp.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const toggleSelect = (empId) => {
@@ -76,7 +85,7 @@ export default function AttendancePage() {
   };
 
   const selectAll = () => {
-    setSelectedEmployees(filteredEmployees.map(emp => emp.employeeId));
+    setSelectedEmployees(filteredEmployees.map(emp => emp._id));
   };
 
   const deselectAll = () => {
@@ -90,9 +99,9 @@ export default function AttendancePage() {
     }
 
     const toSubmit = unmarkedEmployees
-      .filter((emp) => selectedEmployees.includes(emp.employeeId))
+      .filter((emp) => selectedEmployees.includes(emp._id))
       .map((emp) => ({
-        employeeId: emp.employeeId,
+        employeeId: emp._id,
         name: emp.name,
         date: selectedDate,
         shift: selectedShift,
@@ -214,6 +223,22 @@ export default function AttendancePage() {
               <p className="text-slate-600 text-lg">Mark employee attendance with ease</p>
             </div>
 
+            {/* Message Display */}
+            {message && (
+              <div className="mb-6 p-4 rounded-lg bg-red-50 text-red-800 border border-red-200 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="h-5 w-5" />
+                  <span>{message}</span>
+                </div>
+                <button
+                  onClick={() => setMessage('')}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
             {/* Controls Card */}
             <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6 mb-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -258,7 +283,7 @@ export default function AttendancePage() {
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="text"
-                      placeholder="Search by name, ID, or department..."
+                      placeholder="Search by name, username, or email..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-slate-700"
@@ -325,21 +350,21 @@ export default function AttendancePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                   {filteredEmployees.map((emp) => (
                     <div
-                      key={emp.employeeId}
+                      key={emp._id}
                       className={`relative bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border-2 transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer ${
-                        selectedEmployees.includes(emp.employeeId)
+                        selectedEmployees.includes(emp._id)
                           ? 'border-green-400 bg-gradient-to-br from-green-50 to-white ring-2 ring-green-200'
                           : 'border-white/50 hover:border-blue-200'
                       }`}
-                      onClick={() => toggleSelect(emp.employeeId)}
+                      onClick={() => toggleSelect(emp._id)}
                     >
                       {/* Selection Indicator */}
                       <div className={`absolute top-3 right-3 w-6 h-6 rounded-full transition-all duration-200 ${
-                        selectedEmployees.includes(emp.employeeId)
+                        selectedEmployees.includes(emp._id)
                           ? 'bg-green-500 text-white'
                           : 'bg-slate-200 text-slate-400'
                       } flex items-center justify-center`}>
-                        {selectedEmployees.includes(emp.employeeId) ? (
+                        {selectedEmployees.includes(emp._id) ? (
                           <CheckCircle className="w-4 h-4" />
                         ) : (
                           <div className="w-3 h-3 rounded-full border-2 border-slate-400"></div>
@@ -355,9 +380,9 @@ export default function AttendancePage() {
                         {/* Employee Info */}
                         <div className="text-center space-y-2">
                           <h3 className="font-bold text-slate-800 text-lg">{emp.name}</h3>
-                          <p className="text-slate-600 font-medium">ID: {emp.employeeId}</p>
+                          <p className="text-slate-600 font-medium">@{emp.username}</p>
                           <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getDepartmentColor(emp.department)}`}>
-                            {emp.department}
+                            {emp.department || 'No Department'}
                           </span>
                         </div>
 
@@ -366,15 +391,15 @@ export default function AttendancePage() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleSelect(emp.employeeId);
+                              toggleSelect(emp._id);
                             }}
                             className={`w-full py-2 px-4 rounded-lg font-semibold transition-all duration-200 ${
-                              selectedEmployees.includes(emp.employeeId)
+                              selectedEmployees.includes(emp._id)
                                 ? 'bg-red-500 hover:bg-red-600 text-white'
                                 : 'bg-green-500 hover:bg-green-600 text-white'
                             }`}
                           >
-                            {selectedEmployees.includes(emp.employeeId) ? 'Remove' : 'Mark Present'}
+                            {selectedEmployees.includes(emp._id) ? 'Remove' : 'Mark Present'}
                           </button>
                         </div>
                       </div>

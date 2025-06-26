@@ -1,6 +1,6 @@
 import dbConnect from '@/lib/dbConnect';
 import Company from '@/models/Company';
-import User from '@/models/User';   
+import User from '@/models/User';
 import SuperAdmin from '@/models/SuperAdmin';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
@@ -27,11 +27,10 @@ export async function POST(req) {
       return Response.json({ message: 'All fields are required' }, { status: 400 });
     }
 
-    // ✅ Check if email exists in any model
     const [existingCompany, existingUser, existingSuperAdmin] = await Promise.all([
       Company.findOne({ email }),
       User.findOne({ email }),
-      SuperAdmin.findOne({ email })
+      SuperAdmin.findOne({ email }),
     ]);
 
     if (existingCompany || existingUser || existingSuperAdmin) {
@@ -39,16 +38,13 @@ export async function POST(req) {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-
     const company = await Company.create({
       name,
       email,
       passwordHash,
-      createdBy: decoded._id
+      createdBy: decoded._id,
     });
-
     return Response.json({ message: '✅ Company created', company }, { status: 201 });
-
   } catch (error) {
     console.error('🔥 Create Company Error:', error.message);
     return Response.json({ message: 'Server error' }, { status: 500 });
@@ -81,7 +77,6 @@ export async function DELETE(req) {
     }
 
     return Response.json({ message: '✅ Company deleted successfully' }, { status: 200 });
-
   } catch (error) {
     console.error('🔥 Delete Company Error:', error.message);
     return Response.json({ message: 'Server error' }, { status: 500 });
