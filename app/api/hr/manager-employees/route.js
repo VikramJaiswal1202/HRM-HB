@@ -18,7 +18,7 @@ export async function GET(req) {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== "hr") {
+    if (decoded.role !== "manager" && decoded.role !== "hr") {
       return NextResponse.json({ message: "Access denied" }, { status: 403 });
     }
 
@@ -40,6 +40,7 @@ export async function GET(req) {
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }
+
 
 export async function PATCH(req) {
   try {
