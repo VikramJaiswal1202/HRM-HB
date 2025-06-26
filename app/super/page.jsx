@@ -1,24 +1,24 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { LogOut, BarChart, Building, Users } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { LogOut, BarChart, Building, Users } from "lucide-react";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 export default function SuperAdminPage() {
-  const [activeSection, setActiveSection] = useState('analytics');
+  const [activeSection, setActiveSection] = useState("analytics");
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCompany, setNewCompany] = useState({
-    name: '',
-    email: '',
-    password: ''
+    name: "",
+    email: "",
+    password: "",
   });
   const [companies, setCompanies] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchingCompanies, setFetchingCompanies] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [companyEmployees, setCompanyEmployees] = useState({});
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -26,9 +26,26 @@ export default function SuperAdminPage() {
   const [message, setMessage] = useState("");
   const router = useRouter();
 
+  const analyticsData = {
+    totalTasks: 1200,
+    completedTasks: 1000,
+    pendingTasks: 200,
+    avgSpeed: "2.5h/task",
+    activeUsers: 38,
+    performanceScore: "87%",
+  };
+
   const sidebarItems = [
-    { label: "Analytics", icon: <BarChart size={18} className="mr-2" />, section: "analytics" },
-    { label: "Company Details", icon: <Building size={18} className="mr-2" />, section: "company" },
+    {
+      label: "Analytics",
+      icon: <BarChart size={18} className="mr-2" />,
+      section: "analytics",
+    },
+    {
+      label: "Company Details",
+      icon: <Building size={18} className="mr-2" />,
+      section: "company",
+    },
   ];
 
   // Fetch companies from backend
@@ -36,17 +53,17 @@ export default function SuperAdminPage() {
     const fetchCompanies = async () => {
       try {
         setFetchingCompanies(true);
-        const response = await fetch('/api/companies');
-        
+        const response = await fetch("/api/companies");
+
         if (!response.ok) {
-          throw new Error('Failed to fetch companies');
+          throw new Error("Failed to fetch companies");
         }
-        
+
         const data = await response.json();
         setCompanies(data.companies || []);
       } catch (err) {
         setError(err.message);
-        console.error('Error fetching companies:', err);
+        console.error("Error fetching companies:", err);
       } finally {
         setFetchingCompanies(false);
       }
@@ -61,7 +78,7 @@ export default function SuperAdminPage() {
     try {
       const res = await fetch(`/api/companies/${companyId}/employees`, {
         method: "GET",
-        credentials: 'include',
+        credentials: "include",
       });
       const data = await res.json();
       
@@ -90,6 +107,10 @@ export default function SuperAdminPage() {
     }
   };
 
+  const handleLogout = () => {
+    router.push("/login");
+  };
+
   // Handle company selection
   const handleCompanyClick = async (company) => {
     setSelectedCompany(company);
@@ -98,17 +119,16 @@ export default function SuperAdminPage() {
     }
   };
 
-  // Handle adding a new company
   const handleAddCompany = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const response = await fetch('/api/company', {
-        method: 'POST',
+      const response = await fetch("/api/company", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(newCompany),
       });
@@ -116,18 +136,18 @@ export default function SuperAdminPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to add company');
+        throw new Error(data.message || "Failed to add company");
       }
 
       // Refresh companies list after adding new one
-      const refreshResponse = await fetch('/api/companies');
+      const refreshResponse = await fetch("/api/companies");
       if (refreshResponse.ok) {
         const refreshData = await refreshResponse.json();
         setCompanies(refreshData.companies || []);
       }
 
       // Reset form
-      setNewCompany({ name: '', email: '', password: '' });
+      setNewCompany({ name: "", email: "", password: "" });
       setShowAddForm(false);
     } catch (err) {
       setError(err.message);
@@ -188,7 +208,7 @@ export default function SuperAdminPage() {
               <button
                 key={item.label}
                 className={`flex flex-col items-center gap-1 rounded py-2 w-16 transition-colors ${
-                  activeSection === item.section ? 'bg-[#4267b2]' : 'hover:bg-[#1a2b4c]'
+                  activeSection === item.section ? "bg-[#4267b2]" : "hover:bg-[#1a2b4c]"
                 }`}
                 onClick={() => {
                   setActiveSection(item.section);
@@ -204,7 +224,7 @@ export default function SuperAdminPage() {
         {/* Floatable logout button */}
         <div className="w-full flex justify-center">
           <button
-            onClick={() => router.push("/login")}
+            onClick={handleLogout}
             className="fixed bottom-6 left-6 flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors z-50"
             style={{ color: "#fff", fontSize: "13px" }}
           >
@@ -228,35 +248,38 @@ export default function SuperAdminPage() {
 
         {/* Page Content */}
         <main className="flex-1 p-8">
-          {activeSection === 'analytics' && !selectedCompany && (
+          {activeSection === "analytics" && !selectedCompany && (
             <div className="space-y-8">
-              <h1 className="text-3xl font-semibold text-[#0D1A33]">Company Analytics</h1>
+              <h1 className="text-3xl font-semibold text-[#0D1A33]">
+                Company Analytics
+              </h1>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {companies.map((company) => {
-                  const analytics = getCompanyAnalytics(company);
-                  return (
-                    <div
-                      key={company._id}
-                      className="p-6 bg-white rounded-xl shadow hover:shadow-md transition cursor-pointer border-2 border-transparent hover:border-blue-400"
-                      onClick={() => handleCompanyClick(company)}
-                    >
-                      <h2 className="text-xl font-bold text-gray-900 mb-1">{company.name}</h2>
-                      <p className="text-gray-600">👥 Employees: {analytics.employees}</p>
-                      <p className="text-gray-600">✅ Tasks Done: {analytics.completedTasks}</p>
-                      <p className="text-gray-600">⏳ Pending: {analytics.pendingTasks}</p>
-                      <div className="mt-2">
-                        <span className="text-blue-700 font-semibold">
-                          Completion: {analytics.completionRate}%
-                        </span>
-                      </div>
+                {companies.map((company) => (
+                  <div
+                    key={company._id}
+                    className="p-6 bg-white rounded-xl shadow hover:shadow-md transition cursor-pointer"
+                    onClick={() => handleCompanyClick(company)}
+                  >
+                    <h2 className="text-xl font-bold text-[#0D1A33] mb-1">
+                      {company.name}
+                    </h2>
+                    <p className="text-[#0D1A33]">📧 {company.email}</p>
+                    <div className="mt-2 text-sm text-[#0D1A33] space-y-1">
+                      <p>👤 HRs: {company.users?.hr ?? 0}</p>
+                      <p>👨‍💼 Managers: {company.users?.manager ?? 0}</p>
+                      <p>👷 Employees: {company.users?.employee ?? 0}</p>
+                      <p>🧑‍🎓 Interns: {company.users?.intern ?? 0}</p>
+                      <p className="font-semibold mt-1">
+                        👥 Total: {company.totalEmployees ?? 0}
+                      </p>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {activeSection === 'analytics' && selectedCompany && (
+          {activeSection === "analytics" && selectedCompany && (
             <div className="space-y-6">
               <button
                 className="mb-6 px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
@@ -371,10 +394,12 @@ export default function SuperAdminPage() {
             </div>
           )}
 
-          {activeSection === 'company' && (
+          {activeSection === "company" && (
             <div className="space-y-6">
-              <h1 className="text-3xl font-semibold text-[#0D1A33]">Company Details</h1>
-              
+              <h1 className="text-3xl font-semibold text-[#0D1A33]">
+                Company Details
+              </h1>
+
               <button
                 onClick={() => setShowAddForm(true)}
                 className="px-4 py-2 bg-[#4267b2] text-white rounded hover:bg-[#314d80] transition"
@@ -383,54 +408,77 @@ export default function SuperAdminPage() {
               </button>
 
               {showAddForm && (
-                <form onSubmit={handleAddCompany} className="p-6 bg-white rounded-xl shadow mb-6">
-                  <h2 className="text-xl font-semibold mb-4 text-[#0D1A33]">Add New Company</h2>
-                  
+                <form
+                  onSubmit={handleAddCompany}
+                  className="p-6 bg-white rounded-xl shadow mb-6"
+                >
+                  <h2 className="text-xl font-semibold mb-4 text-[#0D1A33]">
+                    Add New Company
+                  </h2>
+
                   {error && <div className="text-red-500 mb-4">{error}</div>}
-                  
+
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-[#0D1A33] mb-1">Company Name</label>
+                      <label className="block text-sm font-medium text-[#0D1A33] mb-1">
+                        Company Name
+                      </label>
                       <input
                         type="text"
                         value={newCompany.name}
-                        onChange={(e) => setNewCompany({...newCompany, name: e.target.value})}
+                        onChange={(e) =>
+                          setNewCompany({ ...newCompany, name: e.target.value })
+                        }
                         className="w-full p-2 border border-[#e9eef6] rounded-lg focus:ring-2 focus:ring-[#4267b2] focus:outline-none"
                         required
                       />
                     </div>
-                    
+
                     <div>
-                      <label className="block text-sm font-medium text-[#0D1A33] mb-1">Email</label>
+                      <label className="block text-sm font-medium text-[#0D1A33] mb-1">
+                        Email
+                      </label>
                       <input
                         type="email"
                         value={newCompany.email}
-                        onChange={(e) => setNewCompany({...newCompany, email: e.target.value})}
+                        onChange={(e) =>
+                          setNewCompany({
+                            ...newCompany,
+                            email: e.target.value,
+                          })
+                        }
                         className="w-full p-2 border border-[#e9eef6] rounded-lg focus:ring-2 focus:ring-[#4267b2] focus:outline-none"
                         required
                       />
                     </div>
-                    
+
                     <div>
-                      <label className="block text-sm font-medium text-[#0D1A33] mb-1">Password</label>
+                      <label className="block text-sm font-medium text-[#0D1A33] mb-1">
+                        Password
+                      </label>
                       <input
                         type="password"
                         value={newCompany.password}
-                        onChange={(e) => setNewCompany({...newCompany, password: e.target.value})}
+                        onChange={(e) =>
+                          setNewCompany({
+                            ...newCompany,
+                            password: e.target.value,
+                          })
+                        }
                         className="w-full p-2 border border-[#e9eef6] rounded-lg focus:ring-2 focus:ring-[#4267b2] focus:outline-none"
                         required
                       />
                     </div>
-                    
+
                     <div className="flex gap-2">
                       <button
                         type="submit"
                         disabled={isLoading}
                         className="px-4 py-2 bg-[#4267b2] text-white rounded-lg hover:bg-[#314d80] transition disabled:opacity-50"
                       >
-                        {isLoading ? 'Adding...' : 'Add Company'}
+                        {isLoading ? "Adding..." : "Add Company"}
                       </button>
-                      
+
                       <button
                         type="button"
                         onClick={() => setShowAddForm(false)}
@@ -453,11 +501,21 @@ export default function SuperAdminPage() {
                     <div
                       key={company._id}
                       className="p-6 bg-white rounded-xl shadow hover:shadow-md transition cursor-pointer"
-                      onClick={() => router.push('/homepageC')}
+                      onClick={() => router.push("/homepageC")}
                     >
-                      <h2 className="text-xl font-bold text-[#0D1A33] mb-1">{company.name}</h2>
+                      <h2 className="text-xl font-bold text-[#0D1A33] mb-1">
+                        {company.name}
+                      </h2>
                       <p className="text-[#0D1A33]">📧 {company.email}</p>
-                      <p className="text-[#0D1A33]">👥 Employees: {companyEmployees[company._id]?.length || 'N/A'}</p>
+                      <div className="mt-2 text-sm text-[#0D1A33] space-y-1">
+                        <p>👤 HRs: {company.users?.hr ?? 0}</p>
+                        <p>👨‍💼 Managers: {company.users?.manager ?? 0}</p>
+                        <p>👷 Employees: {company.users?.employee ?? 0}</p>
+                        <p>🧑‍🎓 Interns: {company.users?.intern ?? 0}</p>
+                        <p className="font-semibold mt-1">
+                          👥 Total: {company.totalEmployees ?? 0}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>

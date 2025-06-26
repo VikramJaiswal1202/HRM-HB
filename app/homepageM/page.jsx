@@ -212,12 +212,12 @@ export default function Homepage() {
         </div>
       </aside>
       <div className="flex-1 flex flex-col">
-        <header className="bg-[#0D1A33] shadow flex items-center px-8 h-16">
+        <header className="bg-[#4267b2] shadow flex items-center px-8 h-16">
           <span className="text-white font-bold text-2xl tracking-wide">
             PulseHR
           </span>
         </header>
-        <div className="w-full h-[2px] bg-[#e9eef6]" />
+        <div className="w-full h-[2px] bg-[#4267b2]" />
         <main className="flex-1 flex flex-row gap-8 p-8">
           <div className="flex-1 flex flex-col gap-8">
             <h2 className="text-xl font-bold text-[#0D1A33]">📋 Report Submitting Status</h2>

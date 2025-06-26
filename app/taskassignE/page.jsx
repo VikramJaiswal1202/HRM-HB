@@ -1,229 +1,301 @@
-'use client';
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+"use client";
 
-const TaskAssignPage = () => {
-  const router = useRouter();
-  const [tasks] = useState([
-    {
-      id: 1,
-      title: "Complete project documentation",
-      assignedDate: "2023-06-15",
-      deadline: "2023-06-20",
-      status: "Pending"
-    },
-    {
-      id: 2,
-      title: "Fix login page bug",
-      assignedDate: "2023-06-10",
-      deadline: "2023-06-12",
-      status: "Completed"
-    }
-  ]);
+import { useEffect, useState } from "react";
 
-  const [showSubmissionForm, setShowSubmissionForm] = useState(false);
-  const [submissionText, setSubmissionText] = useState("");
-  const [submissionPhoto, setSubmissionPhoto] = useState(null);
-
-  const sidebarItems = [
-    { label: "Homepage", icon: "🏠", route: "/homepageE" },
-    { label: "View Attendance", icon: "📅", route: "/viewattendanceE" },
-    { label: "Task Assign", icon: "📝", route: "/taskAssignE" },
-    { label: "Reporting", icon: "📊", route: "/reportingE" },
-  ];
-
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSubmissionPhoto(URL.createObjectURL(file));
-    }
-  };
-
-  const handleTakePhoto = () => {
-    alert("Camera functionality would be implemented here");
-  };
-
-  const handleSubmitTask = (e) => {
-    e.preventDefault();
-    alert(`Task submitted with text: ${submissionText} and ${submissionPhoto ? "photo" : "no photo"}`);
-    setShowSubmissionForm(false);
-    setSubmissionText("");
-    setSubmissionPhoto(null);
-  };
-
+// Sidebar with updated links and functional logout
+function Sidebar() {
   return (
-    <div className="min-h-screen flex bg-[#f6f9fc]">
-      {/* Sidebar */}
-      <aside className="sticky top-0 h-screen w-20 bg-[#0D1A33] text-white flex flex-col items-center py-6 justify-between z-40">
-        <div className="w-full">
-          <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow mx-auto">
-            E
+    <div
+      style={{
+        width: 80,
+        background: "#14213d",
+        color: "#fff",
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        paddingTop: 20,
+        position: "fixed",
+        left: 0,
+        top: 0,
+        zIndex: 10,
+      }}
+    >
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: "50%",
+          background: "#fff",
+          color: "#14213d",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontWeight: "bold",
+          fontSize: 22,
+          marginBottom: 32,
+        }}
+      >
+        R
+      </div>
+      <div style={{ width: "100%" }}>
+        <a href="/homepageE" style={{ color: "#fff", textDecoration: "none" }}>
+          <div style={{ marginBottom: 28, textAlign: "center" }}>
+            <span style={{ fontSize: 22 }}>🏠</span>
+            <div style={{ fontSize: 13, marginTop: 4 }}>Homepage</div>
           </div>
-          <nav className="flex flex-col gap-3 w-full items-center">
-            {sidebarItems.map((item) => (
-              <button
-                key={item.label}
-                className={`flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors ${
-                  item.label === "Task Assign" ? "bg-[#1a2b4c]" : ""
-                }`}
-                onClick={() => router.push(item.route)}
-              >
-                <span className="text-2xl">{item.icon}</span>
-                <span className="text-[11px] font-medium">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </div>
-        <button
-          onClick={() => router.push("/login")}
-          className="mb-4 flex flex-col items-center gap-1 hover:bg-[#1a2b4c] rounded py-2 w-16 transition-colors"
+        </a>
+        <a href="/viewattendanceE" style={{ color: "#fff", textDecoration: "none" }}>
+          <div style={{ marginBottom: 28, textAlign: "center" }}>
+            <span style={{ fontSize: 22 }}>📅</span>
+            <div style={{ fontSize: 13, marginTop: 4 }}>View Attendance</div>
+          </div>
+        </a>
+        <a href="/taskassignE" style={{ color: "#fff", textDecoration: "none" }}>
+          <div style={{ marginBottom: 28, textAlign: "center" }}>
+            <span style={{ fontSize: 22 }}>📝</span>
+            <div style={{ fontSize: 13, marginTop: 4 }}>Task Assign</div>
+          </div>
+        </a>
+      </div>
+      <div style={{ marginTop: "auto", marginBottom: 24, textAlign: "center" }}>
+        <span
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            background: "#22223b",
+            color: "#fff",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 16,
+            cursor: "pointer",
+          }}
+          onClick={() => { window.location.href = "/login"; }}
         >
-          <span className="text-2xl">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-              <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </span>
-          <span className="text-[11px]">Logout</span>
-        </button>
-      </aside>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Navbar */}
-        <header className="bg-[#4267b2] shadow flex items-center px-8 h-16">
-          <span className="text-white font-bold text-2xl tracking-wide">
-            PulseHR
-          </span>
-        </header>
-        <div className="w-full h-[2px] bg-[#e9eef6]" />
-
-        {/* Task Content */}
-        <main className={`flex-1 flex flex-col items-center w-full py-8 px-4 ${showSubmissionForm ? 'filter blur-sm' : ''}`}>
-          <div className="w-full max-w-4xl">
-            <h1 className="text-2xl font-bold text-[#0D1A33] mb-6">Your Tasks</h1>
-            
-            {/* Tasks Table */}
-            <div className="bg-white rounded-xl shadow p-6 mb-8">
-              <table className="min-w-full border border-[#e9eef6] rounded-lg">
-                <thead>
-                  <tr className="bg-[#f4f7fb] text-[#0D1A33]">
-                    <th className="py-3 px-6 border-b text-left">Task</th>
-                    <th className="py-3 px-6 border-b text-left">Assigned Date</th>
-                    <th className="py-3 px-6 border-b text-left">Deadline</th>
-                    <th className="py-3 px-6 border-b text-left">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tasks.map(task => (
-                    <tr key={task.id} className="text-[#0D1A33] text-base hover:bg-[#e9eef6] transition">
-                      <td className="py-3 px-6 border-b">{task.title}</td>
-                      <td className="py-3 px-6 border-b">{task.assignedDate}</td>
-                      <td className="py-3 px-6 border-b">{task.deadline}</td>
-                      <td className="py-3 px-6 border-b">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          task.status === "Completed" 
-                            ? "bg-green-100 text-green-800" 
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}>
-                          {task.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Submission Button */}
-            <div className="flex justify-end">
-              <button
-                onClick={() => setShowSubmissionForm(true)}
-                className="bg-[#4267b2] hover:bg-[#314d80] text-white font-bold py-2 px-6 rounded-lg transition-colors"
-              >
-                Your Submission
-              </button>
-            </div>
-          </div>
-        </main>
-
-        {/* Submission Form Overlay - White Background */}
-        {showSubmissionForm && (
-          <div className="fixed inset-0 flex items-center justify-center z-50">
-            <div 
-              className="absolute inset-0 bg-black bg-opacity-50"
-              onClick={() => setShowSubmissionForm(false)}
-            ></div>
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative z-10 mx-4">
-              <h2 className="text-xl font-bold text-[#0D1A33] mb-4">Task Submission</h2>
-              
-              <form onSubmit={handleSubmitTask}>
-                <div className="mb-4">
-                  <label className="block font-medium text-[#0D1A33] mb-2">Description</label>
-                  <textarea
-                    value={submissionText}
-                    onChange={(e) => setSubmissionText(e.target.value)}
-                    className="w-full border border-[#e9eef6] rounded-lg px-3 py-2 bg-white"
-                    rows="4"
-                    placeholder="Describe your task completion..."
-                    required
-                  />
-                </div>
-                
-                <div className="mb-6">
-                  <label className="block font-medium text-[#0D1A33] mb-2">Add Photo</label>
-                  <div className="flex gap-3">
-                    <label className="flex-1 bg-[#f4f7fb] border border-[#e9eef6] rounded-lg px-4 py-3 text-center cursor-pointer hover:bg-[#e9eef6]">
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={handlePhotoUpload}
-                        className="hidden"
-                      />
-                      From Gallery
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleTakePhoto}
-                      className="flex-1 bg-[#f4f7fb] border border-[#e9eef6] rounded-lg px-4 py-3 hover:bg-[#e9eef6]"
-                    >
-                      Take Photo
-                    </button>
-                  </div>
-                  {submissionPhoto && (
-                    <div className="mt-3">
-                      <img 
-                        src={submissionPhoto} 
-                        alt="Submission preview" 
-                        className="h-24 rounded-lg object-cover border border-[#e9eef6]"
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowSubmissionForm(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-[#4267b2] hover:bg-[#314d80] text-white font-bold rounded-lg"
-                  >
-                    Submit Task
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+          <span style={{ fontSize: 18 }}>↩</span>
+        </span>
+        <div
+          style={{ fontSize: 12, marginTop: 4, cursor: "pointer" }}
+          onClick={() => { window.location.href = "/login"; }}
+        >
+          Logout
+        </div>
       </div>
     </div>
   );
-};
+}
 
-export default TaskAssignPage;
+// Navbar
+function Navbar() {
+  return (
+    <div
+      style={{
+        height: 56,
+        background: "#3357b7",
+        color: "#fff",
+        display: "flex",
+        alignItems: "center",
+        paddingLeft: 100,
+        fontWeight: "bold",
+        fontSize: 24,
+        letterSpacing: 1,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+      }}
+    >
+      PulseHR
+    </div>
+  );
+}
+
+export default function EmployeeTasks() {
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function fetchTasks() {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/employee/tasks", {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTasks(data.tasks || []);
+      } else {
+        setError(data.message || "Error loading tasks");
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  async function handleCompleteTask(taskId, file) {
+    const formData = new FormData();
+    formData.append("completionFile", file);
+
+    const res = await fetch(`/api/employee/tasks/${taskId}`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      alert(data.message);
+      fetchTasks();
+    } else {
+      alert(data.message || "Error submitting task");
+    }
+  }
+
+  return (
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f4f6f8" }}>
+      <Sidebar />
+      <div style={{ flex: 1, marginLeft: 80 }}>
+        <Navbar />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-start",
+            minHeight: "calc(100vh - 56px)",
+            padding: "40px 0",
+            background: "#f4f6f8",
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+              padding: "32px 32px 24px 32px",
+              minWidth: 600,
+              width: "100%",
+              maxWidth: 800,
+              color: "Black",
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: 20, marginBottom: 24, color: "Black" }}>
+              Your Tasks
+            </div>
+            {loading && <div>Loading tasks...</div>}
+            {error && <div style={{ color: "red" }}>{error}</div>}
+            {!loading && tasks.length === 0 && (
+              <div>No tasks assigned.</div>
+            )}
+            {!loading &&
+              tasks.map((task) => (
+                <div
+                  key={task._id}
+                  style={{
+                    border: "1px solid #e0e0e0",
+                    padding: "18px 20px",
+                    borderRadius: "8px",
+                    marginBottom: "1.2rem",
+                    background: "#fafbfc",
+                  }}
+                >
+                  <div style={{ fontWeight: 500, fontSize: 17, marginBottom: 6 }}>
+                    {task.title}
+                  </div>
+                  <div style={{ fontSize: 15, marginBottom: 8, color: "#444" }}>
+                    {task.description}
+                  </div>
+                  <div style={{ fontSize: 14, marginBottom: 4 }}>
+                    <span style={{ color: "#888" }}>Assigned By:</span>{" "}
+                    {task.assignedBy?.name} ({task.assignedBy?.username})
+                  </div>
+                  <div style={{ fontSize: 14, marginBottom: 4 }}>
+                    <span style={{ color: "#888" }}>Status:</span>{" "}
+                    <strong
+                      style={{
+                        color:
+                          task.status === "completed"
+                            ? "#219653"
+                            : task.status === "pending"
+                            ? "#f2994a"
+                            : "#333",
+                      }}
+                    >
+                      {task.status}
+                    </strong>
+                  </div>
+                  <div style={{ fontSize: 14, marginBottom: 10 }}>
+                    <span style={{ color: "#888" }}>Created At:</span>{" "}
+                    {new Date(task.createdAt).toLocaleString()}
+                  </div>
+                  {task.status === "pending" && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const file = e.target.elements.fileInput.files[0];
+                        if (!file) {
+                          alert("Please attach a file before submitting.");
+                          return;
+                        }
+                        handleCompleteTask(task._id, file);
+                      }}
+                      style={{ marginTop: 10 }}
+                    >
+                      <input
+                        type="file"
+                        name="fileInput"
+                        required
+                        style={{
+                          marginRight: "1rem",
+                          fontSize: 14,
+                          padding: "2px 0",
+                        }}
+                      />
+                      <button
+                        type="submit"
+                        style={{
+                          background: "#3357b7",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 4,
+                          padding: "6px 18px",
+                          fontWeight: 500,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Mark Done
+                      </button>
+                    </form>
+                  )}
+                  {task.status === "completed" && task.completionFile && (
+                    <div style={{ marginTop: 10 }}>
+                      <span style={{ color: "#219653", fontWeight: 500 }}>
+                        ✅ Completed.
+                      </span>{" "}
+                      <a
+                        href={task.completionFile}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          color: "#3357b7",
+                          textDecoration: "underline",
+                          marginLeft: 8,
+                        }}
+                      >
+                        View Uploaded File
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

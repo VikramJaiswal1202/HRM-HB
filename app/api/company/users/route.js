@@ -92,7 +92,7 @@ export async function GET(req) {
       }).select("-passwordHash");
 
       return Response.json({ users }, { status: 200 });
-    } else if (decoded.role === "hr") {
+    } else if (decoded.role === "hr" || decoded.role === "manager") {
       if (roleFilter && roleFilter === "manager") {
         // ✅ Allow HR to fetch only managers when role=manager
         const users = await User.find({

@@ -13,7 +13,6 @@ const AttendancePage = () => {
     { label: "Homepage", icon: "🏠", route: "/homepageE" },
     { label: "View Attendance", icon: "📅", route: "/viewattendanceE" },
     { label: "Task Assign", icon: "📝", route: "/taskassignE" },
-    { label: "Reporting", icon: "📊", route: "/reportingE" },
   ];
 
   // Mock data - replace with actual API call
