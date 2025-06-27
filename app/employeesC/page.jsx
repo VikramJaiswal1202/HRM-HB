@@ -1,81 +1,61 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Users, Settings, ChevronRight } from "lucide-react";
 
-const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
-
-export default function EmployeesPage() {
+export default function HomepageC() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const companyId = searchParams.get("companyId");
+
+  const [managers, setManagers] = useState([]);
+  const [hrs, setHrs] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const sidebarItems = [
     { label: "Homepage", icon: "🏠", route: "/homepageC" },
     { label: "Manager", icon: "👥", route: "/addM" },
     { label: "HR", icon: "👥", route: "/addHR" },
-    { label: "empolyees", icon: "🎓", route: "/employeesC" },
+    { label: "Employees", icon: "🎓", route: "/employeesC" },
   ];
 
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[1]);
-  const [message, setMessage] = useState("");
-
-  // Fetch all employees from backend using the same API as HR
-  const fetchEmployees = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/hr/users", {
-        method: "GET",
-        credentials: 'include',
-      });
-      const data = await res.json();
-      
-      if (res.ok) {
-        // Filter only employees (not interns or other roles)
-        const employeeList = data.users?.filter(user => user.role === 'employee') || [];
-        setEmployees(employeeList);
-        setMessage("");
-      } else {
-        setMessage(data.message || "Failed to fetch employees");
-        setEmployees([]);
-      }
-    } catch (error) {
-      console.error("Fetch error:", error);
-      setMessage("Error connecting to server");
-      setEmployees([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Fetch all users: managers, HRs, employees
   useEffect(() => {
-    fetchEmployees();
-  }, []);
+    const fetchData = async () => {
+      try {
+        setLoading(true);
 
-  // Pagination logic
-  const totalPages = Math.ceil(employees.length / pageSize);
-  const paginatedEmployees = employees.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+        // Fetch Managers
+        const managersRes = await fetch("/api/hr/users?role=manager");
+        const managersData = await managersRes.json();
+        if (managersRes.ok) setManagers(managersData.users || []);
 
-  const handleRowClick = (emp) => {
-    setSelectedEmployee(emp);
-    setShowDetails(true);
-  };
+        // Fetch HRs
+        const hrsRes = await fetch("/api/hr/users?role=hr");
+        const hrsData = await hrsRes.json();
+        if (hrsRes.ok) setHrs(hrsData.users || []);
 
-  // Handle page size change
-  const handlePageSizeChange = (e) => {
-    setPageSize(Number(e.target.value));
-    setCurrentPage(1);
-  };
+        // Fetch Employees/Interns
+        if (companyId) {
+          const empRes = await fetch(`/api/hr/users?companyId=${companyId}`);
+          const empData = await empRes.json();
+          if (empRes.ok) setEmployees(empData.users || []);
+        }
+      } catch (error) {
+        console.error("❌ Error fetching users:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [companyId]);
 
   return (
     <div className="min-h-screen flex bg-[#f6f9fc]">
-      {/* Sidebar - sticky and logout floatable */}
+      {/* Sidebar */}
       <aside className="sticky top-0 h-screen w-20 bg-[#0D1A33] text-white flex flex-col items-center py-6 justify-between z-40">
         <div className="w-full">
           <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-[#0D1A33] font-bold text-xl mb-8 shadow mx-auto">
@@ -94,7 +74,7 @@ export default function EmployeesPage() {
             ))}
           </nav>
         </div>
-        {/* Floatable logout button */}
+
         <div className="w-full flex justify-center">
           <button
             onClick={() => router.push("/login")}
@@ -103,180 +83,116 @@ export default function EmployeesPage() {
           >
             <span style={{ fontSize: "22px" }}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path
+                  d="M16 17L21 12L16 7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M21 12H9"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
               </svg>
             </span>
             <span style={{ fontSize: "11px" }}>Logout</span>
           </button>
         </div>
       </aside>
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Navbar */}
         <header className="bg-[#4267b2] shadow flex items-center px-8 h-16">
-          <span className="text-white font-bold text-2xl tracking-wide">
+          <span className="text-black font-bold text-2xl tracking-wide">
             PulseHR
           </span>
         </header>
         <div className="w-full h-[2px] bg-[#e9eef6]" />
-        {/* Employee Table */}
-        <main className="flex-1 flex flex-col items-center justify-start w-full py-8">
-          <div className="w-full max-w-6xl flex flex-col gap-8">
-            <div className="bg-white rounded-xl shadow p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold text-[#0D1A33] flex items-center gap-2">
-                  Employees
-                </h2>
+
+        <main className="flex-1 p-8">
+          {/* HR / Manager Count */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <InfoCard
+              title="Managers"
+              count={loading ? "--" : managers.length}
+              icon={<Settings className="h-6 w-6 text-blue-600" />}
+              bg="bg-blue-100"
+            />
+            <InfoCard
+              title="HR Personnel"
+              count={loading ? "--" : hrs.length}
+              icon={<Users className="h-6 w-6 text-purple-600" />}
+              bg="bg-purple-100"
+            />
+          </div>
+
+          {/* Employee Table */}
+          <div className="bg-white rounded-lg shadow-md p-6 mt-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Employees & Interns
+            </h2>
+
+            {loading ? (
+              <div className="text-center p-6">
+                <div className="animate-spin h-8 w-8 border-b-2 border-indigo-600 mx-auto rounded-full" />
               </div>
-              {message && (
-                <div className="mb-4 p-3 rounded bg-red-100 text-red-700">
-                  {message}
-                </div>
-              )}
-              {loading ? (
-                <div className="text-[#0D1A33] text-center py-8">Loading...</div>
-              ) : employees.length === 0 ? (
-                <div className="text-gray-400 text-center py-4">No employees found.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border border-[#e9eef6] rounded-lg text-base">
-                    <thead>
-                      <tr className="bg-[#f4f7fb] text-[#0D1A33]">
-                        <th className="py-3 px-6 border-b">Username</th>
-                        <th className="py-3 px-6 border-b">Name</th>
-                        <th className="py-3 px-6 border-b">Email</th>
-                        <th className="py-3 px-6 border-b">Role</th>
-                        <th className="py-3 px-6 border-b">Created Date</th>
+            ) : employees.length === 0 ? (
+              <p className="text-gray-500 text-sm">
+                No employees or interns found.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm text-left border text-black">
+                  <thead className="bg-gray-100 text-black">
+                    <tr>
+                      <th className="py-2 px-4 border-b">Name</th>
+                      <th className="py-2 px-4 border-b">Employee ID</th>
+                      <th className="py-2 px-4 border-b">Designation</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-black">
+                    {employees.map((emp) => (
+                      <tr key={emp._id} className="hover:bg-gray-50">
+                        <td className="py-2 px-4 border-b">{emp.name}</td>
+                        <td className="py-2 px-4 border-b">{emp._id}</td>{" "}
+                        {/* Show Mongo Object ID */}
+                        <td className="py-2 px-4 border-b capitalize">
+                          {emp.role}
+                        </td>{" "}
+                        {/* Show role like 'employee' */}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedEmployees.map((emp, idx) => (
-                        <tr
-                          key={emp._id || idx}
-                          className="text-[#0D1A33] text-base hover:bg-[#e9eef6] transition cursor-pointer"
-                          onClick={() => handleRowClick(emp)}
-                        >
-                          <td className="py-3 px-6 border-b">{emp.username}</td>
-                          <td className="py-3 px-6 border-b">{emp.name}</td>
-                          <td className="py-3 px-6 border-b">{emp.email || <span className="text-gray-400">-</span>}</td>
-                          <td className="py-3 px-6 border-b">
-                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                              {emp.role}
-                            </span>
-                          </td>
-                          <td className="py-3 px-6 border-b">
-                            {emp.createdAt ? new Date(emp.createdAt).toLocaleDateString() : "-"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {/* Pagination */}
-                  <div className="flex flex-wrap justify-between items-center gap-2 mt-6">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[#0D1A33] font-semibold">Rows per page:</span>
-                      <select
-                        value={pageSize}
-                        onChange={handlePageSizeChange}
-                        className="border border-[#4267b2] rounded px-2 py-1 text-[#4267b2] font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-[#4267b2]"
-                        style={{ minWidth: 60 }}
-                      >
-                        {PAGE_SIZE_OPTIONS.map((size) => (
-                          <option key={size} value={size}>{size}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        className="px-3 py-1 rounded bg-[#e9eef6] text-[#0D1A33] font-bold disabled:opacity-50"
-                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        Prev
-                      </button>
-                      <span className="mx-2 text-[#0D1A33] font-semibold">
-                        Page {currentPage} of {totalPages}
-                      </span>
-                      <button
-                        className="px-3 py-1 rounded bg-[#e9eef6] text-[#0D1A33] font-bold disabled:opacity-50"
-                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </main>
-        {/* Details Modal */}
-        {showDetails && selectedEmployee && (
-          <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: "rgba(246,249,252,0.95)" }}>
-            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-lg relative">
-              <button
-                className="absolute top-3 right-3 text-gray-400 hover:text-[#4267b2] text-2xl"
-                onClick={() => setShowDetails(false)}
-                aria-label="Close"
-              >
-                &times;
-              </button>
-              <h3 className="text-xl font-bold mb-4 text-[#0D1A33]">
-                Employee Details: {selectedEmployee.name}
-              </h3>
-              
-              <div className="bg-gradient-to-r from-[#f4f7fb] to-[#e9eef6] rounded-lg p-6 shadow-sm">
-                <h4 className="font-semibold text-[#4267b2] text-lg mb-4 border-b pb-2 border-[#e9eef6]">
-                  Employee Information
-                </h4>
-                <div className="mt-2 grid grid-cols-1 gap-4">
-                  <div className="bg-white p-3 rounded-lg shadow-xs">
-                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Name</p>
-                    <p className="font-medium text-[#0D1A33] mt-1">{selectedEmployee.name}</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg shadow-xs">
-                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Username</p>
-                    <p className="font-medium text-[#0D1A33] mt-1">{selectedEmployee.username || "-"}</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg shadow-xs">
-                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Email</p>
-                    <p className="font-medium text-[#0D1A33] mt-1">{selectedEmployee.email || "-"}</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg shadow-xs">
-                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Role</p>
-                    <p className="font-medium text-[#0D1A33] mt-1">
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm">
-                        {selectedEmployee.role}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg shadow-xs">
-                    <p className="text-xs text-[#6b7280] uppercase tracking-wider">Created Date</p>
-                    <p className="font-medium text-[#0D1A33] mt-1">
-                      {selectedEmployee.createdAt ? new Date(selectedEmployee.createdAt).toLocaleDateString() : "-"}
-                    </p>
-                  </div>
-                  {selectedEmployee.managerId && (
-                    <div className="bg-white p-3 rounded-lg shadow-xs">
-                      <p className="text-xs text-[#6b7280] uppercase tracking-wider">Manager ID</p>
-                      <p className="font-medium text-[#0D1A33] mt-1">{selectedEmployee.managerId}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <button
-                onClick={() => setShowDetails(false)}
-                className="mt-4 bg-[#4267b2] hover:bg-[#314d80] text-white font-bold py-2 rounded-lg transition-colors w-full"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
+      </div>
+    </div>
+  );
+}
+
+function InfoCard({ title, count, icon, bg }) {
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-700">{title}</h3>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{count}</p>
+        </div>
+        <div className={`p-3 rounded-full ${bg}`}>{icon}</div>
       </div>
     </div>
   );
