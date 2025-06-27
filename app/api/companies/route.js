@@ -1,5 +1,6 @@
 import dbConnect from '@/lib/dbConnect';
 import Company from '@/models/Company';
+import User from '@/models/User';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 
@@ -19,9 +20,44 @@ export async function GET() {
       return Response.json({ message: 'Access denied: Not superadmin' }, { status: 403 });
     }
 
+    // Get all companies
     const companies = await Company.find().select('-passwordHash');
 
-    return Response.json({ companies }, { status: 200 });
+    // For each company, count users by role
+    const companiesWithRoles = await Promise.all(
+      companies.map(async (company) => {
+        const companyId = company._id;
+
+        const roleCounts = await User.aggregate([
+          { $match: { companyId } },
+          {
+            $group: {
+              _id: '$role',
+              count: { $sum: 1 }
+            }
+          }
+        ]);
+
+        const roles = {
+          hr: 0,
+          manager: 0,
+          user: 0
+        };
+
+        roleCounts.forEach((rc) => {
+          roles[rc._id] = rc.count;
+        });
+
+        return {
+          _id: company._id,
+          name: company.name,
+          email: company.email,
+          roles
+        };
+      })
+    );
+
+    return Response.json({ companies: companiesWithRoles }, { status: 200 });
 
   } catch (error) {
     console.error('🔥 Fetch Companies Error:', error.message);

@@ -1,48 +1,57 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Users, Settings, ChevronRight } from 'lucide-react';
+import { useRouter, useSearchParams } from "next/navigation";
+import { Users, Settings, ChevronRight } from "lucide-react";
 
-const HomepageC = () => {
+export default function HomepageC() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const companyId = searchParams.get("companyId");
+
   const [managers, setManagers] = useState([]);
   const [hrs, setHrs] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const sidebarItems = [
     { label: "Homepage", icon: "🏠", route: "/homepageC" },
     { label: "Manager", icon: "👥", route: "/addM" },
     { label: "HR", icon: "👥", route: "/addHR" },
-    { label: "empolyees", icon: "🎓", route: "/employeesC" },
+    { label: "Employees", icon: "🎓", route: "/employeesC" },
   ];
 
-  // Fetch both managers and HRs
+  // Fetch all users: managers, HRs, employees
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
-        // Fetch managers
-        const managersRes = await fetch("/api/company/users?role=manager");
-        const managersData = await managersRes.json();
-        
-        // Fetch HRs
-        const hrsRes = await fetch("/api/company/users?role=hr");
-        const hrsData = await hrsRes.json();
 
+        // Fetch Managers
+        const managersRes = await fetch("/api/hr/users?role=manager");
+        const managersData = await managersRes.json();
         if (managersRes.ok) setManagers(managersData.users || []);
+
+        // Fetch HRs
+        const hrsRes = await fetch("/api/hr/users?role=hr");
+        const hrsData = await hrsRes.json();
         if (hrsRes.ok) setHrs(hrsData.users || []);
-        
+
+        // Fetch Employees/Interns
+        if (companyId) {
+          const empRes = await fetch(`/api/hr/users?companyId=${companyId}`);
+          const empData = await empRes.json();
+          if (empRes.ok) setEmployees(empData.users || []);
+        }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("❌ Error fetching users:", error);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+  }, [companyId]);
 
   return (
     <div className="min-h-screen flex bg-[#f6f9fc]">
@@ -65,6 +74,7 @@ const HomepageC = () => {
             ))}
           </nav>
         </div>
+
         <div className="w-full flex justify-center">
           <button
             onClick={() => router.push("/login")}
@@ -73,9 +83,26 @@ const HomepageC = () => {
           >
             <span style={{ fontSize: "22px" }}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                <path d="M16 17L21 12L16 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M21 12H9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path
+                  d="M16 17L21 12L16 7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M21 12H9"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M12 19C7.58172 19 4 15.4183 4 11C4 6.58172 7.58172 3 12 3"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
               </svg>
             </span>
             <span style={{ fontSize: "11px" }}>Logout</span>
@@ -93,125 +120,61 @@ const HomepageC = () => {
         </header>
         <div className="w-full h-[2px] bg-[#e9eef6]" />
 
-        {/* Page Content */}
         <main className="flex-1 p-8">
-          {/* Stats Overview */}
+          {/* HR / Manager Count */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700">Managers</h3>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">
-                    {loading ? '--' : managers.length}
-                  </p>
-                </div>
-                <div className="p-3 bg-blue-100 rounded-full">
-                  <Settings className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-700">HR Personnel</h3>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">
-                    {loading ? '--' : hrs.length}
-                  </p>
-                </div>
-                <div className="p-3 bg-purple-100 rounded-full">
-                  <Users className="h-6 w-6 text-purple-600" />
-                </div>
-              </div>
-            </div>
+            <InfoCard
+              title="Managers"
+              count={loading ? "--" : managers.length}
+              icon={<Settings className="h-6 w-6 text-blue-600" />}
+              bg="bg-blue-100"
+            />
+            <InfoCard
+              title="HR Personnel"
+              count={loading ? "--" : hrs.length}
+              icon={<Users className="h-6 w-6 text-purple-600" />}
+              bg="bg-purple-100"
+            />
           </div>
 
-          {/* Recent Managers */}
-          <div className="bg-white rounded-lg shadow-md mb-8">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Managers
-              </h2>
-              <button 
-                onClick={() => router.push("/addM")}
-                className="text-indigo-600 hover:text-indigo-800 flex items-center"
-              >
-                See More <ChevronRight className="h-4 w-4 ml-1" />
-              </button>
-            </div>
-            
-            {loading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-              </div>
-            ) : managers.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <p>No managers found</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200">
-                {managers.slice(0, 3).map((manager) => (
-                  <div key={manager._id} className="p-4 hover:bg-gray-50">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <Settings className="h-5 w-5" />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {manager.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {manager.email}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Employee Table */}
+          <div className="bg-white rounded-lg shadow-md p-6 mt-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Employees & Interns
+            </h2>
 
-          {/* Recent HRs */}
-          <div className="bg-white rounded-lg shadow-md">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-lg font-semibold text-gray-900">
-                HR Personnel
-              </h2>
-              <button 
-                onClick={() => router.push("/addHR")}
-                className="text-indigo-600 hover:text-indigo-800 flex items-center"
-              >
-                See More <ChevronRight className="h-4 w-4 ml-1" />
-              </button>
-            </div>
-            
             {loading ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+              <div className="text-center p-6">
+                <div className="animate-spin h-8 w-8 border-b-2 border-indigo-600 mx-auto rounded-full" />
               </div>
-            ) : hrs.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <p>No HR personnel found</p>
-              </div>
+            ) : employees.length === 0 ? (
+              <p className="text-gray-500 text-sm">
+                No employees or interns found.
+              </p>
             ) : (
-              <div className="divide-y divide-gray-200">
-                {hrs.slice(0, 3).map((hr) => (
-                  <div key={hr._id} className="p-4 hover:bg-gray-50">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <Users className="h-5 w-5" />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {hr.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {hr.email}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm text-left border">
+                  <thead className="bg-gray-100 text-gray-700">
+                    <tr>
+                      <th className="py-2 px-4 border-b">Name</th>
+                      <th className="py-2 px-4 border-b">Employee ID</th>
+                      <th className="py-2 px-4 border-b">Designation</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-black">
+                    {employees.map((emp) => (
+                      <tr key={emp._id} className="hover:bg-gray-50">
+                        <td className="py-2 px-4 border-b">{emp.name}</td>
+                        <td className="py-2 px-4 border-b">{emp._id}</td>{" "}
+                        {/* Show Mongo Object ID */}
+                        <td className="py-2 px-4 border-b capitalize">
+                          {emp.role}
+                        </td>{" "}
+                        {/* Show role like 'employee' */}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -219,6 +182,18 @@ const HomepageC = () => {
       </div>
     </div>
   );
-};
+}
 
-export default HomepageC;
+function InfoCard({ title, count, icon, bg }) {
+  return (
+    <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-700">{title}</h3>
+          <p className="text-3xl font-bold text-gray-900 mt-2">{count}</p>
+        </div>
+        <div className={`p-3 rounded-full ${bg}`}>{icon}</div>
+      </div>
+    </div>
+  );
+}
