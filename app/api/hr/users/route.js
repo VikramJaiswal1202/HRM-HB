@@ -130,27 +130,44 @@ import dbConnect from '@/lib/dbConnect';
     }
 
     // ✅ Fetch employees/interns (GET)
-    export async function GET() {
-      try {
-        await dbConnect();
+    // ✅ Fetch employees/interns (GET)
+export async function GET(req) {
+  try {
+    await dbConnect();
 
-        const token = await getTokenFromHeaders();
-        if (!token) return Response.json({ message: 'Unauthorized: No token' }, { status: 401 });
+    const token = await getTokenFromHeaders();
+    if (!token) return Response.json({ message: 'Unauthorized: No token' }, { status: 401 });
 
-        const decoded = jwt.verify(token, JWT_SECRET);
-        if (decoded.role === 'employee' || decoded.role === 'intern') {
-          return Response.json({ message: 'Access denied: ' }, { status: 403 });
-        }
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-        const users = await User.find({
-          companyId: decoded.companyId,
-          role: { $in: ['employee', 'intern'] },
-        }).select('-passwordHash');
+    const url = new URL(req.url, 'http://localhost'); // Dummy base for parsing
+    const companyIdFromQuery = url.searchParams.get("companyId");
 
-        return Response.json({ users }, { status: 200 });
+    let companyIdToUse;
 
-      } catch (err) {
-        console.error('🔥 HR Fetch Error:', err.message);
-        return Response.json({ message: 'Server error' }, { status: 500 });
-      }
-    }
+    // Allow HRs to use their own companyId from token
+    if (decoded.role === 'hr') {
+      companyIdToUse = decoded.companyId;
+    }
+
+    // Allow superadmin to provide companyId in query
+    if (decoded.role === 'superadmin' && companyIdFromQuery) {
+      companyIdToUse = companyIdFromQuery;
+    }
+
+    if (!companyIdToUse) {
+      return Response.json({ message: 'Access denied' }, { status: 403 });
+    }
+
+    const users = await User.find({
+      companyId: companyIdToUse,
+      role: { $in: ['employee', 'intern'] },
+    }).select('-passwordHash');
+
+    return Response.json({ users }, { status: 200 });
+
+  } catch (err) {
+    console.error('🔥 HR Fetch Error:', err.message);
+    return Response.json({ message: 'Server error' }, { status: 500 });
+  }
+}
