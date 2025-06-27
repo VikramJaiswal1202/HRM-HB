@@ -1,10 +1,6 @@
 
 "use client";
-"use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { LogOut, BarChart, Building } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, BarChart, Building } from "lucide-react";
