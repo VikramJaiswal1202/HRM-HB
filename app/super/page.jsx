@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -70,8 +71,8 @@ export default function SuperAdminPage() {
     router.push("/login");
   };
 
-  const handleCompanyClick = () => {
-    router.push("/homepageC");
+  const handleCompanyClick = (companyId) => {
+    router.push(`/homepageC?companyId=${companyId}`);
   };
 
   const handleAddCompany = async (e) => {
@@ -295,19 +296,21 @@ export default function SuperAdminPage() {
                     <div
                       key={idx}
                       className="p-6 bg-white rounded-xl shadow hover:shadow-md transition cursor-pointer"
-                      onClick={handleCompanyClick}
+                      onClick={() => handleCompanyClick(company._id)}
+
                     >
                       <h2 className="text-xl font-bold text-[#0D1A33] mb-1">
                         {company.name}
                       </h2>
                       <p className="text-[#0D1A33]">📧 {company.email}</p>
                       <div className="mt-2 text-sm text-[#0D1A33] space-y-1">
-                        <p>👥 Employees:</p>
-                        <ul className="pl-4 list-disc">
-                          <li>HR: {company.roles?.hr || 0}</li>
-                          <li>Managers: {company.roles?.manager || 0}</li>
-                          <li>Users: {company.roles?.user || 0}</li>
-                        </ul>
+                        <p>👤 HRs: {company.users?.hr ?? 0}</p>
+                        <p>👨‍💼 Managers: {company.users?.manager ?? 0}</p>
+                        <p>👷 Employees: {company.users?.employee ?? 0}</p>
+                        <p>🧑‍🎓 Interns: {company.users?.intern ?? 0}</p>
+                        <p className="font-semibold mt-1">
+                          👥 Total: {company.totalEmployees ?? 0}
+                        </p>
                       </div>
                     </div>
                   ))}

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -114,7 +115,7 @@ export default function HomepageC() {
       <div className="flex-1 flex flex-col">
         {/* Navbar */}
         <header className="bg-[#4267b2] shadow flex items-center px-8 h-16">
-          <span className="text-white font-bold text-2xl tracking-wide">
+          <span className="text-black font-bold text-2xl tracking-wide">
             PulseHR
           </span>
         </header>
@@ -153,8 +154,8 @@ export default function HomepageC() {
               </p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="min-w-full text-sm text-left border">
-                  <thead className="bg-gray-100 text-gray-700">
+                <table className="min-w-full text-sm text-left border text-black">
+                  <thead className="bg-gray-100 text-black">
                     <tr>
                       <th className="py-2 px-4 border-b">Name</th>
                       <th className="py-2 px-4 border-b">Employee ID</th>

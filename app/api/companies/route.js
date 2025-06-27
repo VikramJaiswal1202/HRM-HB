@@ -1,3 +1,4 @@
+
 import dbConnect from '@/lib/dbConnect';
 import Company from '@/models/Company';
 import User from '@/models/User';
@@ -16,20 +17,16 @@ export async function GET() {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== 'superadmin') {
+    if (!decoded || decoded.role !== 'superadmin') {
       return Response.json({ message: 'Access denied: Not superadmin' }, { status: 403 });
     }
 
-    // Get all companies
-    const companies = await Company.find().select('-passwordHash');
+    const companies = await Company.find().select('-passwordHash').lean();
 
-    // For each company, count users by role
-    const companiesWithRoles = await Promise.all(
+    const enrichedCompanies = await Promise.all(
       companies.map(async (company) => {
-        const companyId = company._id;
-
         const roleCounts = await User.aggregate([
-          { $match: { companyId } },
+          { $match: { companyId: company._id } },
           {
             $group: {
               _id: '$role',
@@ -38,26 +35,26 @@ export async function GET() {
           }
         ]);
 
-        const roles = {
+        const roleMap = {
           hr: 0,
           manager: 0,
-          user: 0
+          employee: 0,
+          intern: 0
         };
 
-        roleCounts.forEach((rc) => {
-          roles[rc._id] = rc.count;
+        roleCounts.forEach(({ _id, count }) => {
+          if (_id in roleMap) roleMap[_id] = count;
         });
 
         return {
-          _id: company._id,
-          name: company.name,
-          email: company.email,
-          roles
+          ...company,
+          users: roleMap,
+          totalEmployees: roleCounts.reduce((sum, r) => sum + r.count, 0)
         };
       })
     );
 
-    return Response.json({ companies: companiesWithRoles }, { status: 200 });
+    return Response.json({ companies: enrichedCompanies }, { status: 200 });
 
   } catch (error) {
     console.error('🔥 Fetch Companies Error:', error.message);
