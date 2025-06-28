@@ -1,5 +1,4 @@
-// models/Attendance.js
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const AttendanceSchema = new mongoose.Schema({
   employeeId: {
@@ -14,6 +13,11 @@ const AttendanceSchema = new mongoose.Schema({
     type: Date,
     default: () => new Date(),
   },
+  shift: {
+    type: String,
+    enum: ['Morning', 'Evening', 'Night'],
+    required: true,
+  },
   status: {
     type: String,
     enum: ['Present', 'Absent', 'Leave'],
@@ -23,5 +27,4 @@ const AttendanceSchema = new mongoose.Schema({
   checkOutTime: String,
 });
 
-export default mongoose.models.Attendance ||
-  mongoose.model("Attendance", AttendanceSchema);
+export default mongoose.models.Attendance || mongoose.model('Attendance', AttendanceSchema);
